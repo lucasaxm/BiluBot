@@ -36,28 +36,65 @@ Telegram::Bot::Client.run(token) do |bot|
             message_array = message.text.split(" ")
             if message_array.size > 1
                 subreddit=message_array[1]
-                logger.info("Subreddit set is #{subreddit}.")
+                logger.info("searching for /r/#{subreddit}.")
                 begin
                     logger.debug("START - Fetching and filtering posts.")
                     selection = reddit_session.subreddit(subreddit).hot.entries.select{ |p|
-                        p.to_h[:post_hint] == "image"
+                        (p.to_h[:post_hint] == "image") ||
+                        (!p.to_h[:url].nil? && (p.to_h[:url].split(".").last == "gif") || (p.to_h[:url].split(".").last == "gifv") || (p.to_h[:url].split(".").last == "mp4"))
                     }
                     logger.debug("END - Fetching and filtering posts.")
                     if selection.empty?
-                        logger.warn("subreddit #{subreddit} has no pictures.")
+                        logger.warn("subreddit #{subreddit} has no sendable media.")
                         bot.api.send_message(
                             chat_id: message.chat.id,
-                            text: "subreddit #{subreddit} has no pictures."
+                            text: "subreddit #{subreddit} has no sendable media.",
+                            reply_to_message_id: message.to_h[:message_id]
                         )
                     else
-                        postobj = selection.sample.to_h
-                        logger.debug("START - Sending #{postobj[:url]} through telegram API.")
-                        bot.api.send_photo(
-                            chat_id: message.chat.id,
-                            photo: "#{postobj[:url]}",
-                            caption: "(#{postobj[:score]}) - #{postobj[:title]}"
-                        )
-                        logger.debug("END - Sending #{postobj[:url]} through telegram API.")
+                        sample = selection.sample.to_h
+                        logger.debug("Sample: score=[#{sample[:score]}] title=[#{sample[:title]}] url=[#{sample[:url]}]")
+                        if (sample[:url].split(".").last == "gif")
+                            logger.debug("START - Sending #{sample[:url]} as document through telegram API.")
+                            bot.api.send_document(
+                                chat_id: message.chat.id,
+                                document: "#{sample[:url]}",
+                                caption: "(#{sample[:score]}) - #{sample[:title]}",
+                                reply_to_message_id: message.to_h[:message_id]
+                            )
+                            logger.debug("END - Sending #{sample[:url]} as document through telegram API.")
+                        elsif (sample[:url].split(".").last == "gifv")
+                            url_array = sample[:url].split(".")
+                            url_array.pop
+                            url_array.push "mp4"
+                            new_url = url_array.join "."
+                            logger.debug("START - Sending #{new_url} as video through telegram API.")
+                            bot.api.send_video(
+                                chat_id: message.chat.id,
+                                video: "#{new_url}",
+                                caption: "(#{sample[:score]}) - #{sample[:title]}",
+                                reply_to_message_id: message.to_h[:message_id]
+                            )
+                            logger.debug("END - Sending #{new_url} as video through telegram API.")
+                        elsif (sample[:url].split(".").last == "mp4")
+                            logger.debug("START - Sending #{sample[:url]} as video through telegram API.")
+                            bot.api.send_video(
+                                chat_id: message.chat.id,
+                                video: "#{sample[:url]}",
+                                caption: "(#{sample[:score]}) - #{sample[:title]}",
+                                reply_to_message_id: message.to_h[:message_id]
+                            )
+                            logger.debug("END - Sending #{sample[:url]} as video through telegram API.")
+                        else
+                            logger.debug("START - Sending #{sample[:url]} as photo through telegram API.")
+                            bot.api.send_photo(
+                                chat_id: message.chat.id,
+                                photo: "#{sample[:url]}",
+                                caption: "(#{sample[:score]}) - #{sample[:title]}",
+                                reply_to_message_id: message.to_h[:message_id]
+                            )
+                            logger.debug("END - Sending #{sample[:url]} as photo through telegram API.")
+                        end
                     end
                 rescue => e
                     logger.error("Exception Class: [#{ e.class.name }]")
@@ -65,12 +102,14 @@ Telegram::Bot::Client.run(token) do |bot|
                     if e.instance_of? Redd::NotFound
                         bot.api.send_message(
                             chat_id: message.chat.id,
-                            text: "subreddit #{subreddit} not found."
+                            text: "subreddit #{subreddit} not found.",
+                            reply_to_message_id: message.to_h[:message_id]
                         )
                     else
                         bot.api.send_message(
                             chat_id: message.chat.id,
-                            text: "Error=[#{ e.message }]."
+                            text: "Error=[#{ e.message }].",
+                            reply_to_message_id: message.to_h[:message_id]
                         )
                     end
                 end
