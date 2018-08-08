@@ -39,9 +39,18 @@ Telegram::Bot::Client.run(token) do |bot|
                 logger.info("searching for /r/#{subreddit}.")
                 begin
                     logger.debug("START - Fetching and filtering posts.")
+                    bot.api.send_chat_action(
+                        chat_id: message.chat.id,
+                        action: "typing"
+                    )
                     selection = reddit_session.subreddit(subreddit).hot.entries.select{ |p|
                         (p.to_h[:post_hint] == "image") ||
-                        (!p.to_h[:url].nil? && (p.to_h[:url].split(".").last == "gif") || (p.to_h[:url].split(".").last == "gifv") || (p.to_h[:url].split(".").last == "mp4"))
+                        (!p.to_h[:url].nil? && (
+                            (p.to_h[:url].split(".").last == "gif") ||
+                            (p.to_h[:url].split(".").last == "gifv") ||
+                            (p.to_h[:url].split(".").last == "mp4") ||
+                            (p.to_h[:url].include? "gfycat.com")
+                        ))
                     }
                     logger.debug("END - Fetching and filtering posts.")
                     if selection.empty?
@@ -56,6 +65,10 @@ Telegram::Bot::Client.run(token) do |bot|
                         logger.debug("Sample: score=[#{sample[:score]}] title=[#{sample[:title]}] url=[#{sample[:url]}]")
                         if (sample[:url].split(".").last == "gif")
                             logger.debug("START - Sending #{sample[:url]} as document through telegram API.")
+                            bot.api.send_chat_action(
+                                chat_id: message.chat.id,
+                                action: "upload_video"
+                            )
                             bot.api.send_document(
                                 chat_id: message.chat.id,
                                 document: "#{sample[:url]}",
@@ -69,6 +82,10 @@ Telegram::Bot::Client.run(token) do |bot|
                             url_array.push "mp4"
                             new_url = url_array.join "."
                             logger.debug("START - Sending #{new_url} as video through telegram API.")
+                            bot.api.send_chat_action(
+                                chat_id: message.chat.id,
+                                action: "upload_video"
+                            )
                             bot.api.send_video(
                                 chat_id: message.chat.id,
                                 video: "#{new_url}",
@@ -78,6 +95,10 @@ Telegram::Bot::Client.run(token) do |bot|
                             logger.debug("END - Sending #{new_url} as video through telegram API.")
                         elsif (sample[:url].split(".").last == "mp4")
                             logger.debug("START - Sending #{sample[:url]} as video through telegram API.")
+                            bot.api.send_chat_action(
+                                chat_id: message.chat.id,
+                                action: "upload_video"
+                            )
                             bot.api.send_video(
                                 chat_id: message.chat.id,
                                 video: "#{sample[:url]}",
@@ -85,8 +106,28 @@ Telegram::Bot::Client.run(token) do |bot|
                                 reply_to_message_id: message.to_h[:message_id]
                             )
                             logger.debug("END - Sending #{sample[:url]} as video through telegram API.")
+                        elsif (sample[:url].include? "gfycat.com")
+                            # new_url = sample[:preview][:images].first[:variants][:gif][:source][:url]
+                            # new_url = (sample[:url].sub "gfycat.com", "giant.gfycat.com")+".mp4"
+                            new_url = (sample[:url].sub "gfycat.com", "thumbs.gfycat.com")+"-max-14mb.gif"
+                            logger.debug("START - Sending #{new_url} as document through telegram API.")
+                            bot.api.send_chat_action(
+                                chat_id: message.chat.id,
+                                action: "upload_video"
+                            )
+                            bot.api.send_document(
+                                chat_id: message.chat.id,
+                                document: "#{new_url}",
+                                caption: "(#{sample[:score]}) - #{sample[:title]}",
+                                reply_to_message_id: message.to_h[:message_id]
+                            )
+                            logger.debug("END - Sending #{new_url} as document through telegram API.")
                         else
                             logger.debug("START - Sending #{sample[:url]} as photo through telegram API.")
+                            bot.api.send_chat_action(
+                                chat_id: message.chat.id,
+                                action: "upload_photo"
+                            )
                             bot.api.send_photo(
                                 chat_id: message.chat.id,
                                 photo: "#{sample[:url]}",
@@ -103,6 +144,14 @@ Telegram::Bot::Client.run(token) do |bot|
                         bot.api.send_message(
                             chat_id: message.chat.id,
                             text: "subreddit #{subreddit} not found.",
+                            reply_to_message_id: message.to_h[:message_id]
+                        )
+                    elsif e.instance_of? Redd::InvalidAccess
+                        reddit_session.client.refresh
+                        logger.info("Reddit session refreshed.")
+                        bot.api.send_message(
+                            chat_id: message.chat.id,
+                            text: "Reddit session refreshed. Please try again.",
                             reply_to_message_id: message.to_h[:message_id]
                         )
                     else
