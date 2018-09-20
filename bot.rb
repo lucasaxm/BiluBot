@@ -1,83 +1,85 @@
 require_relative 'domain/request_weather'
-require_relative 'config/bot_config'
-require 'telegram/bot'
+require_relative 'config/telegram_config.rb'
 require 'dotenv'
+require 'telegram/bot'
 require 'redd'
 require 'forecast_io'
 require 'geocoder'
 
-pidfile = 'bot.rb.pid'
-owfilesuffix = 'owplayers.txt'
+module Bilu
 
-logger = Logger4Telegram.new(Logger4Telegram::DEBUG)
+  @name = 'bilubot'
 
-def new_reddit_session(logger)
-  retries_redd ||= 0
-  begin
-    reddit_session = Redd.it(BotConfig.reddit_config)
-  rescue => e
-    logger.error("Exception Class: [#{e.class.name}]")
-    logger.error("Exception Message: [#{e.message}']")
-    retry if (retries_redd += 1) < 3
+  def listen(&block)
+    @bot.listen &block
   end
-  reddit_session
-end
 
-reddit_session = new_reddit_session(logger)
+  class Bot
+    def self.start
+      Dotenv.load('tokens.env')
 
-def set_up_forecastio_api
-  ForecastIO.configure do |configuration|
-    configuration.api_key = BotConfig.forecastio_token
-    configuration.default_params = {units: 'si'}
-  end
-end
+      owfilesuffix = 'owplayers.txt'
 
-set_up_forecastio_api
+      ForecastConfig.set_up_forecastio_api
 
-request_weather_list = []
+      @reddit_session = new_reddit_session(logger)
 
-forbidden_subs_file = 'forbidden_list.txt'
+      @pidfile = "#{__FILE__}.pid"
 
-def get_forbidden_subs(forbidden_subs_file, logger)
-  begin
-    File.open(forbidden_subs_file, 'r') do |f|
-      forbidden_subs = f.read.split("\n")
+      save_pid
+
     end
-  rescue Errno::ENOENT
-    logger.warn("forbidden_list.txt doesn't exist")
-  end
-  forbidden_subs
-end
 
-forbidden_subs = get_forbidden_subs(forbidden_subs_file, logger)
+    def initialize(logger)
+      @logger = logger
+      @bot = Telegram::Bot::Client.new(TelegramConfig.telegram_token)
 
-File.open(pidfile, 'a+') do |file|
-  begin
-    oldpid = file.read.chomp
-    unless oldpid.empty?
-      logger.debug("killing (#{oldpid}).")
-      Process.kill('KILL', oldpid.to_i)
     end
-  rescue Errno::ESRCH
-    logger.warn("old process (#{oldpid}) already killed")
-  rescue Errno::EPERM
-    logger.error("You don't have permissions to kill the process #{oldpid}")
-  ensure
-    logger.debug("saving PID (#{Process.pid}) into file #{pidfile}")
-    file.truncate(0)
-    file.write(Process.pid)
-    logger.info("PID (#{Process.pid}) saved in file #{pidfile}")
-  end
-end
 
-loop do
-  begin
-    retries_tel ||= 0
-    Telegram::Bot::Client.run(BotConfig.telegram_token) do |bot|
-      bot.listen do |message|
-        logger.message = message
-        if !message.text.nil?
-          if (message.text.start_with? "/reddit")
+    def listen(&block)
+      @bot.listen &block
+    end
+
+    def save_pid
+      File.open(@pidfile, 'a+') do |file|
+        begin
+          oldpid = file.read.chomp
+          unless oldpid.empty?
+            logger.debug("killing (#{oldpid}).")
+            Process.kill('KILL', oldpid.to_i)
+          end
+        rescue Errno::ESRCH
+          logger.warn("old process (#{oldpid}) already killed")
+        rescue Errno::EPERM
+          logger.error("You don't have permissions to kill the process #{oldpid}")
+        ensure
+          logger.debug("saving PID (#{Process.pid}) into file #{pidfile}")
+          file.truncate(0)
+          file.write(Process.pid)
+          logger.info("PID (#{Process.pid}) saved in file #{pidfile}")
+        end
+      end
+    end
+
+    def process_update(message)
+      begin
+
+        case message
+        when Telegram::Bot::Types::InlineQuery
+          # no inline query implementation yet
+
+        when Telegram::Bot::Types::CallbackQuery
+          # callback query not needed
+
+        when Telegram::Bot::Types::ChosenInlineResult
+          # no inline query
+
+        when Telegram::Bot::Types::Message
+          unless message.location.nil?
+            #TODO handle location
+          end
+          return if message.text.nil?
+          if message.text.start_with? "/reddit"
             message_array = message.text.split(" ")
             if message_array.first != "/reddit"
               next
@@ -90,34 +92,34 @@ loop do
                 if forbidden_subs.include? subreddit
                   logger.info("subreddit is forbidden.")
                   bot.api.send_message(
-                      chat_id: message.chat.id,
-                      text: "pls stop",
-                      reply_to_message_id: message.to_h[:message_id]
+                    chat_id: message.chat.id,
+                    text: "pls stop",
+                    reply_to_message_id: message.to_h[:message_id]
                   )
                   next
                 end
                 logger.debug("START - Fetching and filtering posts.")
                 bot.api.send_chat_action(
-                    chat_id: message.chat.id,
-                    action: "typing"
+                  chat_id: message.chat.id,
+                  action: "typing"
                 )
                 #selection = reddit_session.subreddit(subreddit).top(limit: 10, time: :day).entries.select{ |p|
                 selection = reddit_session.subreddit(subreddit).hot.entries.select do |p|
                   (p.to_h[:post_hint] == "image") ||
-                      (!p.to_h[:url].nil? && (
-                      (p.to_h[:url].split(".").last == "gif") ||
-                          (p.to_h[:url].split(".").last == "gifv") ||
-                          (p.to_h[:url].split(".").last == "mp4") ||
-                          (p.to_h[:url].include? "gfycat.com")
-                      ))
+                    (!p.to_h[:url].nil? && (
+                    (p.to_h[:url].split(".").last == "gif") ||
+                      (p.to_h[:url].split(".").last == "gifv") ||
+                      (p.to_h[:url].split(".").last == "mp4") ||
+                      (p.to_h[:url].include? "gfycat.com")
+                    ))
                 end
                 logger.debug("END - Fetching and filtering posts.")
                 if selection.empty?
                   logger.warn("subreddit #{subreddit} has no sendable media.")
                   bot.api.send_message(
-                      chat_id: message.chat.id,
-                      text: "subreddit #{subreddit} has no sendable media.",
-                      reply_to_message_id: message.to_h[:message_id]
+                    chat_id: message.chat.id,
+                    text: "subreddit #{subreddit} has no sendable media.",
+                    reply_to_message_id: message.to_h[:message_id]
                   )
                 else
                   sample = selection.sample.to_h
@@ -125,14 +127,14 @@ loop do
                   if (sample[:url].split(".").last == "gif")
                     logger.debug("START - Sending #{sample[:url]} as document through telegram API.")
                     bot.api.send_chat_action(
-                        chat_id: message.chat.id,
-                        action: "upload_video"
+                      chat_id: message.chat.id,
+                      action: "upload_video"
                     )
                     bot.api.send_document(
-                        chat_id: message.chat.id,
-                        document: "#{sample[:url]}",
-                        caption: "(#{sample[:score]}) - #{sample[:title]}",
-                        reply_to_message_id: message.to_h[:message_id]
+                      chat_id: message.chat.id,
+                      document: "#{sample[:url]}",
+                      caption: "(#{sample[:score]}) - #{sample[:title]}",
+                      reply_to_message_id: message.to_h[:message_id]
                     )
                     logger.debug("END - Sending #{sample[:url]} as document through telegram API.")
                   elsif (sample[:url].split(".").last == "gifv")
@@ -142,85 +144,130 @@ loop do
                     new_url = url_array.join "."
                     logger.debug("START - Sending #{new_url} as video through telegram API.")
                     bot.api.send_chat_action(
-                        chat_id: message.chat.id,
-                        action: "upload_video"
+                      chat_id: message.chat.id,
+                      action: "upload_video"
                     )
                     bot.api.send_video(
-                        chat_id: message.chat.id,
-                        video: "#{new_url}",
-                        caption: "(#{sample[:score]}) - #{sample[:title]}",
-                        reply_to_message_id: message.to_h[:message_id]
+                      chat_id: message.chat.id,
+                      video: "#{new_url}",
+                      caption: "(#{sample[:score]}) - #{sample[:title]}",
+                      reply_to_message_id: message.to_h[:message_id]
                     )
                     logger.debug("END - Sending #{new_url} as video through telegram API.")
                   elsif (sample[:url].split(".").last == "mp4")
                     logger.debug("START - Sending #{sample[:url]} as video through telegram API.")
                     bot.api.send_chat_action(
-                        chat_id: message.chat.id,
-                        action: "upload_video"
+                      chat_id: message.chat.id,
+                      action: "upload_video"
                     )
                     bot.api.send_video(
-                        chat_id: message.chat.id,
-                        video: "#{sample[:url]}",
-                        caption: "(#{sample[:score]}) - #{sample[:title]}",
-                        reply_to_message_id: message.to_h[:message_id]
+                      chat_id: message.chat.id,
+                      video: "#{sample[:url]}",
+                      caption: "(#{sample[:score]}) - #{sample[:title]}",
+                      reply_to_message_id: message.to_h[:message_id]
                     )
                     logger.debug("END - Sending #{sample[:url]} as video through telegram API.")
                   elsif (sample[:url].include? "gfycat.com")
-                      # new_url = sample[:preview][:images].first[:variants][:gif][:source][:url]
-                      # new_url = (sample[:url].sub "gfycat.com", "giant.gfycat.com")+".mp4"
+                    # new_url = sample[:preview][:images].first[:variants][:gif][:source][:url]
+                    # new_url = (sample[:url].sub "gfycat.com", "giant.gfycat.com")+".mp4"
                     new_url = (sample[:url].sub "gfycat.com", "thumbs.gfycat.com")+"-max-14mb.gif"
                     logger.debug("START - Sending #{new_url} as document through telegram API.")
                     bot.api.send_chat_action(
-                        chat_id: message.chat.id,
-                        action: "upload_video"
+                      chat_id: message.chat.id,
+                      action: "upload_video"
                     )
                     bot.api.send_document(
-                        chat_id: message.chat.id,
-                        document: "#{new_url}",
-                        caption: "(#{sample[:score]}) - #{sample[:title]}",
-                        reply_to_message_id: message.to_h[:message_id]
+                      chat_id: message.chat.id,
+                      document: "#{new_url}",
+                      caption: "(#{sample[:score]}) - #{sample[:title]}",
+                      reply_to_message_id: message.to_h[:message_id]
                     )
                     logger.debug("END - Sending #{new_url} as document through telegram API.")
                   else
                     logger.debug("START - Sending #{sample[:url]} as photo through telegram API.")
                     bot.api.send_chat_action(
-                        chat_id: message.chat.id,
-                        action: "upload_photo"
+                      chat_id: message.chat.id,
+                      action: "upload_photo"
                     )
                     bot.api.send_photo(
-                        chat_id: message.chat.id,
-                        photo: "#{sample[:url]}",
-                        caption: "(#{sample[:score]}) - #{sample[:title]}",
-                        reply_to_message_id: message.to_h[:message_id]
+                      chat_id: message.chat.id,
+                      photo: "#{sample[:url]}",
+                      caption: "(#{sample[:score]}) - #{sample[:title]}",
+                      reply_to_message_id: message.to_h[:message_id]
                     )
                     logger.debug("END - Sending #{sample[:url]} as photo through telegram API.")
                   end
                 end
-            rescue => e
-              logger.error("Exception Class: [#{ e.class.name }]")
-              logger.error("Exception Message: [#{ e.message }']")
-              if (e.instance_of? Redd::NotFound) || (e.instance_of? JSON::ParserError)
-                bot.api.send_message(
+              rescue => e
+                logger.error("Exception Class: [#{ e.class.name }]")
+                logger.error("Exception Message: [#{ e.message }']")
+                if (e.instance_of? Redd::NotFound) || (e.instance_of? JSON::ParserError)
+                  bot.api.send_message(
                     chat_id: message.chat.id,
                     text: "subreddit #{subreddit} not found.",
                     reply_to_message_id: message.to_h[:message_id]
-                )
-              elsif e.instance_of? Redd::InvalidAccess
-                reddit_session.client.refresh
-                logger.info("Reddit session refreshed. Retrying.")
-                retry if (retries += 1) < 3
-              else
-                bot.api.send_message(
+                  )
+                elsif e.instance_of? Redd::InvalidAccess
+                  reddit_session.client.refresh
+                  logger.info("Reddit session refreshed. Retrying.")
+                  retry if (retries += 1) < 3
+                else
+                  bot.api.send_message(
                     chat_id: message.chat.id,
                     text: "Error=[#{ e.message }].",
                     reply_to_message_id: message.to_h[:message_id]
-                )
-              end
-            ensure
-              retries=0
+                  )
+                end
+              ensure
+                retries=0
               end
             end
           end # reddit
+
+
+          elsif message.text == "/start"
+            @bot.api.send_message(chat_id: message.chat.id, text: "Hello, #{message.from.first_name}!\nThis bot should be used inline.\nType @hideItBot to start")
+            @bot.api.send_message(chat_id: message.chat.id, text: "You can use it to send a spoiler in a group conversation.\nOr to send a message that won't be readable in notifications!\nYou can hide only *parts of the message* enclosing them in asterisks.\nExample:\n")
+            @bot.api.send_message(
+              chat_id: message.chat.id,
+              text: message_to_blocks(Welcome_message),
+              reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+                inline_keyboard: [
+                  Telegram::Bot::Types::InlineKeyboardButton.new(
+                    text: 'Read',
+                    callback_data: @rootMessageId
+                  )
+                ]
+              )
+            )
+            if BotConfig.has_botan_token
+              @bot.track('message', message.from.id, message_type: 'hello')
+            end
+          end
+
+        end
+      rescue Telegram::Bot::Exceptions::ResponseError => e
+        puts "Telegram answered with error #{e}. Continuing"
+      end
+    end
+
+
+
+  end
+
+end
+
+
+
+
+
+loop do
+  begin
+    retries_tel ||= 0
+    Telegram::Bot::Client.run(BotConfig.telegram_token) do |bot|
+      bot.listen do |message|
+        logger.message = message
+        if !message.text.nil?
           if (message.text.start_with? "/ow")
             message_array = message.text.split(" ")
             if message_array.first != "/ow"

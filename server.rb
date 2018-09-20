@@ -1,31 +1,22 @@
-require 'dotenv'
-Dotenv.load('devtokens.env')
-require_relative 'bot'
+error_count = 0
 
-module Server
-  include Logging
+logger = Logger4Telegram.new(Logger4Telegram::DEBUG)
 
-  MAX_ATTEMPTS = 5
-  error_count = 0
+Bilu::Bot.start
 
-  bot ||= Bilu::Bot.new
+begin
+  bot = Bilu::Bot.new(logger)
 
   bot.listen do |message|
-    begin
-      bot.process_update message
-      error_count = 0
-    rescue StandardError => e
-      error_count += 1
-      logger.error("Exception Class: [#{e.class.name}]")
-      logger.error("Exception Message: [#{e.message}']")
-      if error_count < MAX_ATTEMPTS
-        sleep(1)
-        logger.info("Retrying (Attempt #{error_count + 1}/#{MAX_ATTEMPTS})")
-        retry
-      elsif !bot.nil?
-        logger.error('Sending error message and continuing.')
-        bot.reply_with_text("Error #{e.class.name}: #{e.message}.", message)
-      end
-    end
+    bot.process_update message
+    error_count = 0
+  end
+rescue => e
+  error_count += 1
+  logger.error("Exception Class: [#{e.class.name}]")
+  logger.error("Exception Message: [#{e.message}']")
+  if error_count < 5
+    sleep(1)
+    retry
   end
 end

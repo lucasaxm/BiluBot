@@ -29,6 +29,3 @@ class Logger4Telegram < Logger
   end
 
 end
-
-logger = Logger4Telegram.new Logger4Telegram::DEBUG
-logger.error('oi')
