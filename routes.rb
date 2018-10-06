@@ -1,15 +1,10 @@
-Dir['controllers/*.rb'].each {|file| require_relative file}
+require_relative 'controllers/reddit_controller'
+require_relative 'controllers/overwatch_controller'
+require_relative 'controllers/forecast_controller'
 
 module Routes
-  class << self
-    attr_reader :message_map
-  end
 
-  @message_map = {
-    r: {
-      controller: RedditController,
-      action: :get_media_from_subreddit
-    },
+  message_map = {
     reddit: {
       controller: RedditController,
       action: :get_media_from_subreddit
@@ -23,4 +18,5 @@ module Routes
       action: :get_current_weather
     }
   }.freeze
+
 end

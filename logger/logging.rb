@@ -6,7 +6,9 @@ module Logging
       @logger ||= Logger4Telegram.new(Logger4Telegram::DEBUG)
     end
 
-    attr_writer :logger
+    def logger=(logger)
+      @logger = logger
+    end
   end
 
   def self.included(base)

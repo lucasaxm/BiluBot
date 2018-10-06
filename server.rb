@@ -1,22 +1,26 @@
-error_count = 0
+require_relative 'bot'
 
-logger = Logger4Telegram.new(Logger4Telegram::DEBUG)
+module Server
+  include Logging
 
-Bilu::Bot.start
+  error_count = 0
 
-begin
-  bot = Bilu::Bot.new(logger)
+  Bilu::Bot.start
 
-  bot.listen do |message|
-    bot.process_update message
-    error_count = 0
-  end
-rescue => e
-  error_count += 1
-  logger.error("Exception Class: [#{e.class.name}]")
-  logger.error("Exception Message: [#{e.message}']")
-  if error_count < 5
-    sleep(1)
-    retry
+  begin
+    bot = Bilu::Bot.new
+
+    bot.listen do |message|
+      bot.process_update message
+      error_count = 0
+    end
+  rescue => e
+    error_count += 1
+    logger.error("Exception Class: [#{e.class.name}]")
+    logger.error("Exception Message: [#{e.message}']")
+    if error_count < 5
+      sleep(1)
+      retry
+    end
   end
 end

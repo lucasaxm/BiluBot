@@ -1,4 +1,5 @@
 module RedditConfig
+  Include Logging
   attr_reader :reddit_config,
               :forbidden_subs_file
 
@@ -11,13 +12,13 @@ module RedditConfig
 
   @forbidden_subs_file = 'forbidden_list.txt'
 
-  def get_forbidden_subs(logger)
+  def get_forbidden_subs()
     File.readlines(@forbidden_subs_file).map(&:chomp)
   rescue Errno::ENOENT
     logger.warn("forbidden_list.txt doesn't exist")
   end
 
-  def self.new_reddit_session(logger)
+  def self.new_reddit_session()
     retries_redd ||= 0
     begin
       return Redd.it(@reddit_config)
@@ -28,7 +29,7 @@ module RedditConfig
     end
   end
 
-  def self.validate_sub(subreddit, logger)
+  def self.valid_subreddit?(subreddit)
     forbidden_subs = get_forbidden_subs(logger)
     forbidden_subs.include? subreddit
   end

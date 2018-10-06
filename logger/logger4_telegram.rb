@@ -27,4 +27,5 @@ class Logger4Telegram < Logger
     @chat_type = message.chat.type == 'private' ? 'private' : message.chat.title
     @chat_type << " (#{message.chat.id})"
   end
+
 end
