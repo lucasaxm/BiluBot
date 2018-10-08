@@ -1,11 +1,11 @@
 require_relative 'domain/request_weather'
 require_relative 'config/telegram_config.rb'
-require 'dotenv'
+require_relative 'logger/logging'
+require_relative 'router'
 require 'telegram/bot'
 require 'redd'
 require 'forecast_io'
 require 'geocoder'
-require_relative 'routes'
 
 module Bilu
   include Logging
@@ -14,52 +14,40 @@ module Bilu
 
   class Bot
     include Logging
-    attr_accessor :bot
-
-    class << self
-
-      def start
-        Dotenv.load('devtokens.env')
-
-        @pidfile = "#{__FILE__}.pid"
-
-        save_pid
-
-      end
-
-      def save_pid
-        File.open(@pidfile, 'a+') do |file|
-          begin
-            oldpid = file.read.chomp
-            unless oldpid.empty?
-              logger.debug("killing (#{oldpid}).")
-              Process.kill('KILL', oldpid.to_i)
-            end
-          rescue Errno::ESRCH
-            logger.warn("old process (#{oldpid}) already killed")
-          rescue Errno::EPERM
-            logger.error("You don't have permissions to kill the process #{oldpid}")
-          ensure
-            logger.debug("saving PID (#{Process.pid}) into file #{@pidfile}")
-            file.truncate(0)
-            file.write(Process.pid)
-            logger.info("PID (#{Process.pid}) saved in file #{@pidfile}")
-          end
-        end
-      end
-
-    end
-
+    attr_reader :bot
 
     def initialize
+      @pidfile = "#{__FILE__}.pid"
+      save_pid
       @bot = Telegram::Bot::Client.new(TelegramConfig.telegram_token)
+    end
+
+    def save_pid
+      File.open(@pidfile, 'a+') do |file|
+        begin
+          oldpid = file.read.chomp
+          unless oldpid.empty?
+            logger.debug("killing (#{oldpid}).")
+            Process.kill('KILL', oldpid.to_i)
+          end
+        rescue Errno::ESRCH
+          logger.warn("old process (#{oldpid}) already killed")
+        rescue Errno::EPERM
+          logger.error("You don't have permissions to kill the process #{oldpid}")
+        ensure
+          logger.debug("saving PID (#{Process.pid}) into file #{@pidfile}")
+          file.truncate(0)
+          file.write(Process.pid)
+          logger.info("PID (#{Process.pid}) saved in file #{@pidfile}")
+        end
+      end
     end
 
     def listen(&block)
       @bot.listen(&block)
     end
 
-    def sent_text_message(text, message)
+    def reply_with_text(text, message)
       logger.info("Sending message '#{text}' to #{message.chat.id}.")
       @bot.api.send_message(
         chat_id: message.chat.id,
@@ -69,6 +57,7 @@ module Bilu
     end
 
     def process_update(message)
+      logger.message = message
       case message
         # when Telegram::Bot::Types::InlineQuery
         #   # no inline query implementation yet
@@ -80,7 +69,7 @@ module Bilu
         #   # no inline query
 
       when Telegram::Bot::Types::Message
-        Router.route_message(@bot, message)
+        Router.route_message(self, message)
 
         # elsif message.text == "/start"
         # @bot.api.send_message(chat_id: message.chat.id, text: "Hello, #{message.from.first_name}!\nThis bot should be used inline.\nType @hideItBot to start")
