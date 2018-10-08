@@ -1,6 +1,6 @@
 module TelegramConfig
   class << self
-    attr_accessor :telegram_token
+    attr_reader :telegram_token
   end
-  self.telegram_token = ENV['BILU_TELEGRAM_TOKEN']
+  @telegram_token = ENV['BILU_TELEGRAM_TOKEN']
 end

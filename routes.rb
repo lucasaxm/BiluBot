@@ -1,10 +1,15 @@
-require_relative 'controllers/reddit_controller'
-require_relative 'controllers/overwatch_controller'
-require_relative 'controllers/forecast_controller'
+Dir['controllers/*.rb'].each {|file| require_relative file}
 
 module Routes
+  class << self
+    attr_reader :message_map
+  end
 
-  message_map = {
+  @message_map = {
+    r: {
+      controller: RedditController,
+      action: :get_media_from_subreddit
+    },
     reddit: {
       controller: RedditController,
       action: :get_media_from_subreddit
