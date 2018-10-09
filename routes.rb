@@ -23,5 +23,4 @@ module Routes
       action: :get_current_weather
     }
   }.freeze
-
 end
