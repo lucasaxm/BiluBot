@@ -9,8 +9,9 @@ module RedditConfig
   end
 
   # get list of forbidden subreddits from +forbidden_subs_file+
+  # if +forbidden_subs_file+ doesn't exist it will be created
   def self.read_forbidden_subs_from_file
-    File.readlines(@forbidden_subs_file).map(&:chomp)
+    File.open(@forbidden_subs_file, 'a+', &:readlines).map(&:chomp)
   rescue Errno::ENOENT
     logger.warn("forbidden_list.txt doesn't exist")
   end
