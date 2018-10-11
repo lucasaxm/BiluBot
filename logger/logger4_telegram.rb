@@ -15,6 +15,7 @@ class Logger4Telegram < Logger
 
   def initialize(level)
     set_up
+    STDOUT.sync = true
     super(STDOUT)
     self.level = level
     self.datetime_format = @date_format
