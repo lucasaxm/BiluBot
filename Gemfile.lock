@@ -65,5 +65,8 @@ DEPENDENCIES
   redd (~> 0.8.8)
   telegram-bot-ruby (~> 0.8.6.1)
 
+RUBY VERSION
+   ruby 2.4.4p296
+
 BUNDLED WITH
    1.16.4

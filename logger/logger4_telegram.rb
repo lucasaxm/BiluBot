@@ -6,15 +6,17 @@ class Logger4Telegram < Logger
   attr_accessor :from, :chat_type
 
   def set_up
-    @log_file_name = 'log.txt'
-    @basis = 'daily'
+    # Dir.mkdir('logs') unless File.exist?('logs')
+    # @log_file_name = 'logs/log.txt'
+    # @basis = 'daily'
     @date_format = '%Y-%m-%d %H:%M:%S'
     @from = @chat_type = ''
   end
 
   def initialize(level)
     set_up
-    super(@log_file_name, @basis)
+    STDOUT.sync = true
+    super(STDOUT)
     self.level = level
     self.datetime_format = @date_format
     self.formatter = proc { |severity, datetime, progname, msg|

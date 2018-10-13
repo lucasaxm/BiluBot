@@ -24,7 +24,14 @@ module Server
         retry
       elsif !bot.nil?
         logger.error('Sending error message and continuing.')
-        bot.reply_with_text("Error #{e.class.name}: #{e.message}.", message)
+        answer = case e.class
+                 when Telegram::Bot::Exceptions::ResponseError
+                   'No valid media found.'
+                 else
+                   "Error #{e.class.name}: #{e.message}."
+                 end
+        logger.error("Message=[#{answer}]")
+        bot.reply_with_text(answer, message)
       end
     end
   end

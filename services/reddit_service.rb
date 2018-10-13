@@ -1,3 +1,4 @@
+require 'open-uri'
 require_relative '../logger/logging'
 require_relative '../config/reddit_config'
 
@@ -31,7 +32,7 @@ class RedditService
     )
     hot_posts = get_subreddit_hot_posts(subreddit)
     if hot_posts.empty?
-      answer = "subreddit #{subreddit} has no sendable media."
+      answer = "subreddit #{subreddit} has no media to send."
       logger.warn(answer)
       @bilu.reply_with_text(answer, message)
       return
@@ -42,8 +43,8 @@ class RedditService
   rescue Redd::NotFound, JSON::ParserError => e
     answer = "subreddit #{subreddit} not found."
     logger.error(answer)
-    logger.error("Exception Class: [#{ e.class.name }]")
-    logger.error("Exception Message: [#{ e.message }']")
+    logger.error("Exception Class: [#{e.class.name}]")
+    logger.error("Exception Message: [#{e.message}']")
     @bilu.reply_with_text(answer, message)
   rescue Redd::InvalidAccess => e
     error_count += 1
@@ -53,8 +54,8 @@ class RedditService
       sleep(1)
       retry
     end
-  rescue => e
-    answer = "Error=[#{ e.message }]."
+  rescue Redd::Forbidden => e
+    answer = "Access to this subreddit is forbidden. Reason: #{e.message.split[1]}"
     @bilu.reply_with_text(answer, message)
   end
 
@@ -69,7 +70,9 @@ class RedditService
     elsif url_extension == 'mp4'
       send_mp4(message, post)
     elsif post[:url].include? 'gfycat.com'
-      send_gfycat(message, post)
+      gif_name = post[:url].split('/').last
+      post[:url] = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)["gfyItem"]["mp4Url"]
+      send_mp4(message, post)
     else
       send_photo(message, post)
     end
@@ -88,22 +91,6 @@ class RedditService
       reply_to_message_id: message.to_h[:message_id]
     )
     logger.debug("END - Sending #{post[:url]} as photo through telegram API.")
-  end
-
-  def send_gfycat(message, post)
-    new_url = (post[:url].sub 'gfycat.com', 'thumbs.gfycat.com') + '-max-14mb.gif'
-    logger.debug("START - Sending #{new_url} as document through telegram API.")
-    @bilu.bot.api.send_chat_action(
-      chat_id: message.chat.id,
-      action: 'upload_video'
-    )
-    @bilu.bot.api.send_document(
-      chat_id: message.chat.id,
-      document: "#{new_url}",
-      caption: "(#{post[:score]}) - #{post[:title]}",
-      reply_to_message_id: message.to_h[:message_id]
-    )
-    logger.debug("END - Sending #{new_url} as document through telegram API.")
   end
 
   def send_mp4(message, post)
