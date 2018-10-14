@@ -164,11 +164,6 @@ class RedditService
   def send_help_message(message)
     help =
       "`/reddit subreddit`\n• Get a random media post from subreddit."
-    @bilu.bot.api.send_message(
-      chat_id: message.chat.id,
-      text: help,
-      parse_mode: 'markdown',
-      reply_to_message_id: message.to_h[:message_id]
-    )
+    @bilu.reply_with_markdown_text(help, message)
   end
 end

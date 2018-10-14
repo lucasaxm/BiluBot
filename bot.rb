@@ -57,6 +57,16 @@ module Bilu
       )
     end
 
+    def reply_with_markdown_text(text, message)
+      logger.info("Sending message '#{text}' to #{message.chat.id}.")
+      @bot.api.send_message(
+        chat_id: message.chat.id,
+        text: text,
+        parse_mode: 'markdown',
+        reply_to_message_id: message.message_id
+      )
+    end
+
     def process_update(message)
       logger.message = message
       case message
