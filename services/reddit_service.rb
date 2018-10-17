@@ -127,7 +127,7 @@ class RedditService
     url_array = url.split('.')
     url_array.pop
     url_array.push 'mp4'
-    new_url = url_array.join '.'
+    url_array.join '.'
   end
 
   def send_gifv(message, post)
@@ -158,7 +158,7 @@ class RedditService
 
   def send_help_message(message)
     help =
-      "`/reddit subreddit`\n• Get a random media post from subreddit."
+      "`/reddit subreddit`\n\u{2022} Get a random media post from subreddit."
     @bilu.reply_with_markdown_text(help, message)
   end
 end

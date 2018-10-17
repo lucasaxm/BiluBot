@@ -5,7 +5,6 @@ require_relative 'router'
 require 'telegram/bot'
 require 'redd'
 require 'forecast_io'
-require 'geocoder'
 
 module Bilu
   include Logging
