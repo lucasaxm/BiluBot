@@ -6,21 +6,21 @@ module Routes
   end
 
   @message_map = {
-    r: {
+    %i[r reddit] => {
       controller: RedditController,
       action: :get_media_from_subreddit
     },
-    reddit: {
-      controller: RedditController,
-      action: :get_media_from_subreddit
-    },
-    ow: {
+    %i[ow] => {
       controller: OverwatchController,
       action: :sub_router
     },
-    weather: {
+    %i[weather] => {
       controller: ForecastController,
       action: :get_current_weather
+    },
+    %i[markov markov@mkv_bot] => {
+      controller: MiscController,
+      action: :delete_message
     }
   }.freeze
 end

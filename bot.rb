@@ -9,8 +9,6 @@ require 'forecast_io'
 module Bilu
   include Logging
 
-  @name = 'bilubot'
-
   class Bot
     include Logging
     attr_reader :bot
@@ -53,6 +51,14 @@ module Bilu
         chat_id: message.chat.id,
         text: text,
         reply_to_message_id: message.message_id
+      )
+    end
+
+    def delete_message(message)
+      logger.info("Deleting message #{message.text.nil? ? message.message_id : '\'' + message.text + '\''} from #{message.chat.id}.")
+      @bot.api.delete_message(
+        chat_id: message.chat.id,
+        message_id: message.message_id,
       )
     end
 
