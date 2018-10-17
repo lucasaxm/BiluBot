@@ -148,14 +148,9 @@ class RedditService
 
   def get_subreddit_hot_posts(subreddit)
     logger.debug('START - Fetching and filtering posts.')
-    selection = @reddit_session.subreddit(subreddit).hot.entries.select do |p|
-      (p.to_h[:post_hint] == 'image') ||
-        (!p.to_h[:url].nil? && (
-        (p.to_h[:url].split('.').last == 'gif') ||
-          (p.to_h[:url].split('.').last == 'gifv') ||
-          (p.to_h[:url].split('.').last == 'mp4') ||
-          (p.to_h[:url].include? 'gfycat.com')
-        ))
+    selection = @reddit_session.subreddit(subreddit).hot.find_all do |p|
+      !p.url.nil? && ((p.url.end_with? '.jpg') || (p.url.end_with? '.png') || (p.url.end_with? '.gif') ||
+        (p.url.end_with? '.gifv') || (p.url.end_with? '.mp4') || (p.url.include? 'gfycat.com'))
     end
     logger.debug('END - Fetching and filtering posts.')
     selection
