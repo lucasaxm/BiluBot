@@ -10,8 +10,8 @@ module Router
   def self.route_message(bot, message)
     entities = message.entities
     return nil if entities.nil? || entities.empty? || entities.first.type != 'bot_command'
-    command = message.text.split(' ').first[1..-1]
-    command = (command.include? '@') && (command.split('@').last == @botname) ? command.split('@')[0..-2].join('@').to_sym : command.to_sym
+    command = message.text.split(' ').first[1..-1].downcase
+    command = command.include?('@') && command.split('@').last.casecmp(@botname).zero? ? command.split('@')[0..-2].join('@').to_sym : command.to_sym
     map = Routes.message_map.find {|a| a.first.include? command}
     return nil if map.nil?
     route = map.last
