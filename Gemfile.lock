@@ -1,0 +1,76 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    addressable (2.5.2)
+      public_suffix (>= 2.0.2, < 4.0)
+    awesome_print (1.8.0)
+    axiom-types (0.1.1)
+      descendants_tracker (~> 0.0.4)
+      ice_nine (~> 0.11.0)
+      thread_safe (~> 0.3, >= 0.3.1)
+    coercible (1.0.0)
+      descendants_tracker (~> 0.0.1)
+    descendants_tracker (0.0.4)
+      thread_safe (~> 0.3, >= 0.3.1)
+    domain_name (0.5.20180417)
+      unf (>= 0.0.5, < 1.0.0)
+    dotenv (2.5.0)
+    equalizer (0.0.11)
+    faraday (0.15.2)
+      multipart-post (>= 1.2, < 3)
+    faraday_middleware (0.12.2)
+      faraday (>= 0.7.4, < 1.0)
+    forecast_io (2.0.2)
+      faraday
+      hashie
+      multi_json
+    geocoder (1.5.0)
+    hashie (3.6.0)
+    http (2.2.2)
+      addressable (~> 2.3)
+      http-cookie (~> 1.0)
+      http-form_data (~> 1.0.1)
+      http_parser.rb (~> 0.6.0)
+    http-cookie (1.0.3)
+      domain_name (~> 0.5)
+    http-form_data (1.0.3)
+    http_parser.rb (0.6.0)
+    ice_nine (0.11.2)
+    inflecto (0.0.2)
+    multi_json (1.13.1)
+    multipart-post (2.0.0)
+    public_suffix (3.0.3)
+    redd (0.8.8)
+      http (~> 2.2)
+    telegram-bot-ruby (0.8.6.1)
+      faraday
+      inflecto
+      virtus
+    thread_safe (0.3.6)
+    unf (0.1.4)
+      unf_ext
+    unf_ext (0.0.7.5-x64-mingw32)
+    virtus (1.0.5)
+      axiom-types (~> 0.1)
+      coercible (~> 1.0)
+      descendants_tracker (~> 0.0, >= 0.0.3)
+      equalizer (~> 0.0, >= 0.0.9)
+
+PLATFORMS
+  x64-mingw32
+
+DEPENDENCIES
+  awesome_print
+  dotenv (~> 2.5)
+  faraday
+  faraday_middleware
+  forecast_io
+  geocoder
+  redd (~> 0.8.8)
+  telegram-bot-ruby (~> 0.8.6.1)
+
+RUBY VERSION
+   ruby 2.4.4p296
+
+BUNDLED WITH
+   1.16.4
