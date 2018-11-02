@@ -21,30 +21,41 @@ class ForecastService
     cityname = text_array[1..-1].join ' '
     logger.info("cityname=[#{cityname}]")
     search_results = search_for_city(cityname)
-    if search_results['totalResultsCount'].zero?
-      answer = "no results for [#{cityname}]"
+    if !search_results['status'].nil?
+      answer = search_results['status']['message']
       logger.error(answer)
     else
-      citygeo = search_results['geonames'].first
-      forecast = ForecastIO.forecast(citygeo['lat'], citygeo['lng']).currently
-      city = "#{citygeo['name']}, #{citygeo['countryName']}"
-
-      icon = get_weather_icon(forecast.icon)
-      answer = "#{city}\n#{icon} `#{forecast.temperature}°C (#{forecast.apparentTemperature}°C), #{forecast.summary}`"
-      logger.info(answer)
+      if search_results['totalResultsCount'].zero?
+        answer = "no results for [#{cityname}]"
+        logger.error(answer)
+      else
+        citygeo = search_results['geonames'].first
+        lat = citygeo['lat']
+        lng = citygeo['lng']
+        forecast = ForecastIO.forecast(lat, lng).currently
+        city = "#{citygeo['name']}, #{citygeo['countryName']}"
+        time = begin
+          timezone_string = ForecastConfig::TIMEZONE_FINDER.lookup(lat, lng)
+          timezone = Timezone.fetch(timezone_string)
+          if timezone.valid?
+            "\u{1F552} `#{timezone.time(Time.now).strftime('%H:%M:%S')} (#{timezone_string})`"
+          else
+            ''
+          end
+        rescue ::Timezone::Error::Lookup
+          ''
+        end
+        icon = get_weather_icon(forecast.icon)
+        answer = "#{city}\n#{time}\n#{icon} `#{forecast.temperature}°C (#{forecast.apparentTemperature}°C), #{forecast.summary}`"
+        logger.info(answer)
+      end
+      @bilu.reply_with_markdown_text(answer, message)
     end
-    @bilu.reply_with_markdown_text(answer, message)
   end
 
   private
 
   def search_for_city(cityname)
-    # Geocoder.search(cityname).select do |c|
-    #   ((c.data['address']['city'].instance_of? String) &&
-    #     c.data['address']['city'].casecmp(cityname).zero?) ||
-    #     ((c.data['address']['town'].instance_of? String) &&
-    #       c.data['address']['town'].casecmp(cityname).zero?)
-    # end
     ForecastConfig.city_search_api.get('searchJSON', q: cityname).body
   end
 

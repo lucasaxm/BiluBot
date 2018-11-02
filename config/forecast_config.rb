@@ -1,11 +1,13 @@
 require 'faraday'
 require 'faraday_middleware'
+require 'timezone'
 
 ##
 # Module that holds all configuration related to ForecastController
 module ForecastConfig
   class << self
-    attr_reader :forecastio_token
+    attr_reader :forecastio_token,
+                :geonames_username
     attr_accessor :request_weather_list
 
     # set up ForecastIO configuration
@@ -20,7 +22,7 @@ module ForecastConfig
 
       url = 'http://api.geonames.org'
 
-      Faraday.new(url: url, params: {username: 'lucasaxm', maxRows: '1', featureClass: 'P'}) do |faraday|
+      Faraday.new(url: url, params: {username: @geonames_username, maxRows: '1', featureClass: 'P'}) do |faraday|
         faraday.response :json
         faraday.adapter Faraday.default_adapter
       end
@@ -29,4 +31,6 @@ module ForecastConfig
 
   # holds the api key used in ForecastIO configuration
   @forecastio_token = ENV['BILU_FORECAST_IO_TOKEN']
+  @geonames_username = ENV['BILU_GEONAMES_USERNAME']
+  TIMEZONE_FINDER = Timezone::Lookup.config(:geonames) {|c| c.username = @geonames_username}
 end
