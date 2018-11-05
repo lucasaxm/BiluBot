@@ -74,20 +74,7 @@ module Bilu
 
     def process_update(message)
       logger.message = message
-      case message
-        # when Telegram::Bot::Types::InlineQuery
-        #   # no inline query implementation yet
-        #
-        # when Telegram::Bot::Types::CallbackQuery
-        #   # callback query not needed
-        #
-        # when Telegram::Bot::Types::ChosenInlineResult
-        #   # no inline query
-
-      when Telegram::Bot::Types::Message
-        Router.route_message(self, message)
-
-      end
+      Router.route_message(self, message)
     end
   end
 end

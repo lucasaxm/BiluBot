@@ -21,6 +21,14 @@ module Routes
     %i[markov markov@mkv_bot] => {
       controller: MiscController,
       action: :delete_message
+    },
+    %i[inline_query] => {
+      controller: RedditController,
+      action: :handle_inline_query
+    },
+    %i[chosen_inline_result] => {
+      controller: RedditController,
+      action: :handle_chosen_inline_result
     }
   }.freeze
 end

@@ -19,14 +19,26 @@ class Logger4Telegram < Logger
     super(STDOUT)
     self.level = level
     self.datetime_format = @date_format
-    self.formatter = proc { |severity, datetime, progname, msg|
+    self.formatter = proc {|severity, datetime, progname, msg|
       "#{severity}\t| #{datetime} | #{@from}\t| #{@chat_type}\t| #{msg}\n"
     }
   end
 
   def message=(message)
     @from = message.from.username.nil? ? message.from.id : message.from.username
-    @chat_type = message.chat.type == 'private' ? 'private' : message.chat.title
-    @chat_type << " (#{message.chat.id})"
+    case message
+    when Telegram::Bot::Types::InlineQuery
+      @chat_type = "Inline Query (#{message.from.id})"
+
+    when Telegram::Bot::Types::Message
+      @chat_type = message.chat.type == 'private' ? 'private' : message.chat.title
+      @chat_type << " (#{message.chat.id})"
+
+#   when Telegram::Bot::Types::CallbackQuery
+#     # callback query not needed
+#
+#   when Telegram::Bot::Types::ChosenInlineResult
+#     # no inline query
+    end
   end
 end

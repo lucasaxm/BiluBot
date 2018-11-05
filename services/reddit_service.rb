@@ -1,9 +1,11 @@
 require 'open-uri'
+require 'telegram/bot'
 require_relative '../logger/logging'
 require_relative '../config/reddit_config'
 
 ##
 # Class that holds all logic related to Reddit
+# noinspection RubyArgCount
 class RedditService
   include Logging
 
@@ -30,7 +32,7 @@ class RedditService
       chat_id: message.chat.id,
       action: 'typing'
     )
-    hot_posts = get_subreddit_hot_posts(subreddit)
+    hot_posts = get_subreddit_hot_media_posts(subreddit)
     if hot_posts.empty?
       answer = "subreddit #{subreddit} has no media to send."
       logger.warn(answer)
@@ -59,6 +61,19 @@ class RedditService
     @bilu.reply_with_text(answer, message)
   end
 
+  def handle_inline_query(inline_query)
+    return if inline_query.query.empty?
+    logger.debug("Query: #{inline_query.query}")
+    results = get_subreddit_hot_posts(inline_query.query).map do |post|
+      create_inline_query_result_media post
+    end
+    @bilu.bot.api.answer_inline_query(inline_query_id: inline_query.id, cache_time: 1, results: results)
+  end
+
+  def handle_chosen_inline_result(chosen_inline_result)
+    ;
+  end
+
   private
 
   def send_media(message, post)
@@ -76,6 +91,56 @@ class RedditService
     else
       send_photo(message, post)
     end
+  end
+
+  def create_inline_query_result_media(post)
+    default_info = {
+      id: post.id,
+      title: "#{post.score} - #{post.title}",
+      thumb_url: (post.thumbnail unless post.is_self),
+      thumb_width: (post.thumbnail_width unless post.is_self),
+      thumb_height: (post.thumbnail_height unless post.is_self)
+    }
+    # url_extension = post.url.split('.').last
+    # if url_extension == 'gif'
+    #   Telegram::Bot::Types::InlineQueryResultGif.new({
+    #                                                    gif_url: post.url,
+    #                                                    caption: "[#{default_info[:title]}](https://reddit.com#{post.permalink})",
+    #                                                    parse_mode: 'markdown'
+    #                                                  }.merge(default_info))
+    # elsif url_extension == 'gifv'
+    #   new_url = prepare_gifv_url(post.url)
+    #   Telegram::Bot::Types::InlineQueryResultVideo.new({
+    #                                                      video_url: new_url,
+    #                                                      mime_type: 'video/mp4'
+    #                                                    }.merge(default_info))
+    # elsif url_extension == 'mp4'
+    #   Telegram::Bot::Types::InlineQueryResultVideo.new({
+    #                                                      video_url: post.url,
+    #                                                      mime_type: 'video/mp4'
+    #                                                    }.merge(default_info))
+    # elsif post.url.include? 'gfycat.com'
+    #   gif_name = post.url.split('/').last
+    #   new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)["gfyItem"]["mp4Url"]
+    #   Telegram::Bot::Types::InlineQueryResultVideo.new({
+    #                                                      video_url: new_url,
+    #                                                      mime_type: 'video/mp4'
+    #                                                    }.merge(default_info))
+    # else
+    #   Telegram::Bot::Types::InlineQueryResultArticle.new({
+    #                                                        description: (post.selftext if post.is_self),
+    #                                                        input_message_content: Telegram::Bot::Types::InputTextMessageContent.new(
+    #                                                          message_text: post.url
+    #                                                        )}.merge(default_info))
+    # end
+    message_text = post.is_self ? "[#{default_info[:title]}](https://reddit.com#{post.permalink})" : "[#{default_info[:title]}](#{post.url})\n[https://reddit.com#{post.permalink}]"
+    # message_text = "[#{default_info[:title]}](https://reddit.com#{post.permalink})"
+    Telegram::Bot::Types::InlineQueryResultArticle.new({
+                                                         description: (post.selftext if post.is_self),
+                                                         input_message_content: Telegram::Bot::Types::InputTextMessageContent.new(
+                                                           message_text: message_text,
+                                                           parse_mode: 'markdown'
+                                                         )}.merge(default_info))
   end
 
   def send_photo(message, post)
@@ -146,14 +211,18 @@ class RedditService
     logger.debug("END - Sending #{new_url} as video through telegram API.")
   end
 
-  def get_subreddit_hot_posts(subreddit)
+  def get_subreddit_hot_media_posts(subreddit)
     logger.debug('START - Fetching and filtering posts.')
-    selection = @reddit_session.subreddit(subreddit).hot.find_all do |p|
+    selection = get_subreddit_hot_posts(subreddit).find_all do |p|
       !p.url.nil? && ((p.url.end_with? '.jpg') || (p.url.end_with? '.png') || (p.url.end_with? '.gif') ||
         (p.url.end_with? '.gifv') || (p.url.end_with? '.mp4') || (p.url.include? 'gfycat.com'))
     end
     logger.debug('END - Fetching and filtering posts.')
     selection
+  end
+
+  def get_subreddit_hot_posts(subreddit)
+    @reddit_session.subreddit(subreddit).hot
   end
 
   def send_help_message(message)
