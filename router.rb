@@ -10,6 +10,17 @@ module Router
   def self.route_message(bot, message)
     case message
     when Telegram::Bot::Types::InlineQuery
+      sleep(1)
+      response = bot.bot.api.getUpdates
+      if response['ok'] &&
+        !response['result'].nil? &&
+        !response['result'].empty? &&
+        !response['result'].first['inline_query'].nil? &&
+        response['result'].first['inline_query']['from']['id'] == message.from.id &&
+        response['result'].first['inline_query']['query'] != message.query
+        logger.debug("Query '#{message.query}' being typed (found '#{response['result'].first['inline_query']['query']}')")
+        return nil
+      end
       action = :inline_query
       #
       # when Telegram::Bot::Types::CallbackQuery

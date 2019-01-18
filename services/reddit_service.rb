@@ -39,8 +39,8 @@ class RedditService
       @bilu.reply_with_text(answer, message)
       return
     end
-    sample = hot_posts.sample.to_h
-    logger.debug("Sample: score=[#{sample[:score]}] title=[#{sample[:title]}] url=[#{sample[:url]}]")
+    sample = hot_posts.sample
+    logger.debug("Sample: score=[#{sample.score}] title=[#{sample.title}] url=[#{sample.url}]")
     send_media(message, sample)
   rescue Redd::NotFound, JSON::ParserError => e
     answer = "subreddit #{subreddit} not found."
@@ -67,7 +67,24 @@ class RedditService
     results = get_subreddit_hot_posts(inline_query.query).map do |post|
       create_inline_query_result_media post
     end
-    @bilu.bot.api.answer_inline_query(inline_query_id: inline_query.id, cache_time: 1, results: results)
+    @bilu.bot.api.answer_inline_query(inline_query_id: inline_query.id, results: results)
+  rescue Redd::NotFound, JSON::ParserError => e
+    answer = "subreddit #{inline_query.query} not found."
+    logger.error(answer)
+    logger.error("Exception Class: [#{e.class.name}]")
+    logger.error("Exception Message: [#{e.message}']")
+    @bilu.bot.api.answer_inline_query(inline_query_id: inline_query.id,
+                                      cache_time: 1,
+                                      results: [],
+                                      switch_pm_text: answer,
+                                      switch_pm_parameter: 'e')
+  rescue Redd::Forbidden => e
+    answer = "Access to this subreddit is forbidden. Reason: #{e.message.split[1]}"
+    @bilu.bot.api.answer_inline_query(inline_query_id: inline_query.id,
+                                      cache_time: 1,
+                                      results: [],
+                                      switch_pm_text: answer,
+                                      switch_pm_parameter: 'e')
   end
 
   def handle_chosen_inline_result(chosen_inline_result)
@@ -77,17 +94,17 @@ class RedditService
   private
 
   def send_media(message, post)
-    url_extension = post[:url].split('.').last
+    url_extension = post.url.split('.').last
     if url_extension == 'gif'
       send_gif(message, post)
     elsif url_extension == 'gifv'
       send_gifv(message, post)
     elsif url_extension == 'mp4'
       send_mp4(message, post)
-    elsif post[:url].include? 'gfycat.com'
-      gif_name = post[:url].split('/').last
-      post[:url] = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)["gfyItem"]["mp4Url"]
-      send_mp4(message, post)
+    elsif post.url.include? 'gfycat.com'
+      gif_name = post.url.split('/').last
+      new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
+      send_mp4(message, post, new_url)
     else
       send_photo(message, post)
     end
@@ -96,7 +113,7 @@ class RedditService
   def create_inline_query_result_media(post)
     default_info = {
       id: post.id,
-      title: "#{post.score} - #{post.title}",
+      title: reddit_post_caption(post),
       thumb_url: (post.thumbnail unless post.is_self),
       thumb_width: (post.thumbnail_width unless post.is_self),
       thumb_height: (post.thumbnail_height unless post.is_self)
@@ -133,59 +150,103 @@ class RedditService
     #                                                          message_text: post.url
     #                                                        )}.merge(default_info))
     # end
-    message_text = post.is_self ? "[#{default_info[:title]}](https://reddit.com#{post.permalink})" : "[#{default_info[:title]}](#{post.url})\n[https://reddit.com#{post.permalink}]"
-    # message_text = "[#{default_info[:title]}](https://reddit.com#{post.permalink})"
     Telegram::Bot::Types::InlineQueryResultArticle.new({
-                                                         description: (post.selftext if post.is_self),
+                                                         description: reddit_selfpost_description(post),
                                                          input_message_content: Telegram::Bot::Types::InputTextMessageContent.new(
-                                                           message_text: message_text,
-                                                           parse_mode: 'markdown'
-                                                         )}.merge(default_info))
+                                                           message_text: input_text_message_content(post),
+                                                           parse_mode: 'html'
+                                                         ),
+                                                         reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+                                                           inline_keyboard: reddit_post_buttons(post)
+                                                         )
+                                                       }.merge(default_info))
+  end
+
+  def input_text_message_content(post)
+    "<a href=\"#{make_telegram_html_url(post.is_self ? reddit_post_full_permalink(post) : post.url)}\">#{reddit_post_caption(post)}</a>"
+  end
+
+  def reddit_post_full_permalink(post)
+    "https://reddit.com#{post.permalink}"
+  end
+
+  def make_telegram_html_url(url)
+    url.gsub('<', '&lt;').gsub('>', '&gt;').gsub('&', '&amp;')
+  end
+
+  def reddit_selfpost_description(post)
+    if post.is_self
+      post.selftext.empty? ? post.title : post.selftext
+    else
+      ''
+    end
   end
 
   def send_photo(message, post)
-    logger.debug("START - Sending #{post[:url]} as photo through telegram API.")
+    logger.debug("START - Sending #{post.url} as photo through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: message.chat.id,
       action: 'upload_photo'
     )
     @bilu.bot.api.send_photo(
       chat_id: message.chat.id,
-      photo: "#{post[:url]}",
-      caption: "(#{post[:score]}) - #{post[:title]}",
-      reply_to_message_id: message.to_h[:message_id]
+      photo: post.url.to_s,
+      caption: reddit_post_caption(post),
+      reply_to_message_id: message.message_id,
+      reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+        inline_keyboard: reddit_post_buttons(post)
+      )
     )
-    logger.debug("END - Sending #{post[:url]} as photo through telegram API.")
+    logger.debug("END - Sending #{post.url} as photo through telegram API.")
   end
 
-  def send_mp4(message, post)
-    logger.debug("START - Sending #{post[:url]} as video through telegram API.")
+  def reddit_post_buttons(post)
+    [
+      Telegram::Bot::Types::InlineKeyboardButton.new(
+        text: 'Comments',
+        url: reddit_post_full_permalink(post)
+      )
+    ]
+  end
+
+  def send_mp4(message, post, new_url = nil)
+    logger.debug("START - Sending #{post.url} as video through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: message.chat.id,
       action: 'upload_video'
     )
     @bilu.bot.api.send_video(
       chat_id: message.chat.id,
-      video: "#{post[:url]}",
-      caption: "(#{post[:score]}) - #{post[:title]}",
-      reply_to_message_id: message.to_h[:message_id]
+      video: new_url.nil? ? post.url.to_s : new_url,
+      caption: reddit_post_caption(post),
+      reply_to_message_id: message.message_id,
+      reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+        inline_keyboard: reddit_post_buttons(post)
+      )
     )
-    logger.debug("END - Sending #{post[:url]} as video through telegram API.")
+    logger.debug("END - Sending #{post.url} as video through telegram API.")
   end
 
   def send_gif(message, post)
-    logger.debug("START - Sending #{post[:url]} as document through telegram API.")
+    logger.debug("START - Sending #{post.url} as document through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: message.chat.id,
       action: 'upload_video'
     )
     @bilu.bot.api.send_document(
       chat_id: message.chat.id,
-      document: post[:url],
-      caption: "(#{post[:score]}) - #{post[:title]}",
-      reply_to_message_id: message.to_h[:message_id]
+      document: post.url,
+      caption: reddit_post_caption(post),
+      reply_to_message_id: message.message_id,
+      reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+        inline_keyboard: reddit_post_buttons(post)
+      )
     )
-    logger.debug("END - Sending #{post[:url]} as document through telegram API.")
+    logger.debug("END - Sending #{post.url} as document through telegram API.")
+  end
+
+  def reddit_post_caption(post)
+    "(#{post.score}) - #{post.title}"
   end
 
   def prepare_gifv_url(url)
@@ -196,7 +257,7 @@ class RedditService
   end
 
   def send_gifv(message, post)
-    new_url = prepare_gifv_url(post[:url])
+    new_url = prepare_gifv_url(post.url)
     logger.debug("START - Sending #{new_url} as video through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: message.chat.id,
@@ -205,8 +266,11 @@ class RedditService
     @bilu.bot.api.send_video(
       chat_id: message.chat.id,
       video: new_url,
-      caption: "(#{post[:score]}) - #{post[:title]}",
-      reply_to_message_id: message.to_h[:message_id]
+      caption: reddit_post_caption(post),
+      reply_to_message_id: message.message_id,
+      reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+        inline_keyboard: reddit_post_buttons(post)
+      )
     )
     logger.debug("END - Sending #{new_url} as video through telegram API.")
   end
