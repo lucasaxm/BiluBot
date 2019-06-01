@@ -46,7 +46,7 @@ module Bilu
     end
 
     def reply_with_text(text, message)
-      logger.info("Sending message '#{text}' to #{message.chat.id}.")
+      logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
       @bot.api.send_message(
         chat_id: message.chat.id,
         text: text,
@@ -63,7 +63,7 @@ module Bilu
     end
 
     def reply_with_markdown_text(text, message)
-      logger.info("Sending message '#{text}' to #{message.chat.id}.")
+      logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
       @bot.api.send_message(
         chat_id: message.chat.id,
         text: text,

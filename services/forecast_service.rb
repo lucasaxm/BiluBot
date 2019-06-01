@@ -47,7 +47,7 @@ class ForecastService
         end
         icon = get_weather_icon(forecast.icon)
         answer = "#{city}\n#{time}\n#{icon} `#{forecast.temperature}°C (#{forecast.apparentTemperature}°C), #{forecast.summary}`"
-        logger.info(answer)
+        logger.info(answer.to_json)
       end
       @bilu.reply_with_markdown_text(answer, message)
     end
