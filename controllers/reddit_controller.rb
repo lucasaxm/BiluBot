@@ -12,8 +12,8 @@ class RedditController
     @service = RedditService.new(bilu)
   end
 
-  def get_media_from_subreddit(message)
-    @service.get_media_from_subreddit(message)
+  def get_media_from_subreddit(message, chat)
+    @service.get_media_from_subreddit(message, chat)
   end
 
   def handle_inline_query(inline_query)

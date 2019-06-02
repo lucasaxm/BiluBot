@@ -2,6 +2,9 @@ require 'open-uri'
 require 'telegram/bot'
 require_relative '../logger/logging'
 require_relative '../config/reddit_config'
+require_relative '../models/reddit_post'
+require_relative '../models/subreddit'
+require_relative '../models/chat'
 
 ##
 # Class that holds all logic related to Reddit
@@ -14,7 +17,7 @@ class RedditService
     @bilu = bilu
   end
 
-  def get_media_from_subreddit(message)
+  def get_media_from_subreddit(message, chat)
     text_array = message.text.split(' ')
     if text_array.size <= 1
       send_help_message(message)
@@ -39,9 +42,39 @@ class RedditService
       @bilu.reply_with_text(answer, message)
       return
     end
-    sample = hot_posts.sample
-    logger.debug("Sample: score=[#{sample.score}] title=[#{sample.title}] url=[#{sample.url}]")
-    send_media(message, sample)
+    sample = nil
+    hot_posts.each_with_index do |hot_post, i|
+      reddit_post = RedditPost.find_or_initialize_by(reddit_id: hot_post.id)
+      if reddit_post.new_record?
+        reddit_post.assign_attributes(title: hot_post.title,
+                                      score: hot_post.score,
+                                      nsfw: hot_post.over_18,
+                                      url: hot_post.url)
+        subreddit_db = Subreddit.find_or_initialize_by(reddit_id: hot_post.subreddit_id)
+        if subreddit_db.new_record?
+          subreddit_db.name = hot_post.subreddit_name_prefixed
+          subreddit_db.save
+          logger.info("subreddit #{subreddit_db.name} saved to database")
+        end
+        reddit_post.subreddit = subreddit_db
+      elsif reddit_post.chats.include? chat
+        logger.info("##{i + 1} of #{hot_posts.size} was already sent.")
+        next
+      end
+      reddit_post.chats << chat
+      reddit_post.save
+      logger.info("Sending ##{i + 1} of #{hot_posts.size} posts.")
+      sample = hot_post
+      break
+    end
+    if sample.nil?
+      logger.warn('There are no posts left to send. Sending "try again later" message.')
+      answer = 'You have seen all hot posts in this subreddit. Try again later.'
+      @bilu.reply_with_text(answer, message)
+    else
+      logger.debug("Sample: score=[#{sample.score}] title=[#{sample.title}] url=[#{sample.url}]")
+      send_media(message, sample)
+    end
   rescue Redd::NotFound, JSON::ParserError => e
     answer = "subreddit #{subreddit} not found."
     logger.error(answer)

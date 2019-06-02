@@ -5,6 +5,8 @@ require_relative 'router'
 require 'telegram/bot'
 require 'redd'
 require 'forecast_io'
+require 'active_record'
+require 'sqlite3'
 
 module Bilu
   include Logging
@@ -17,6 +19,8 @@ module Bilu
       @pidfile = "#{__FILE__}.pid"
       save_pid
       @bot = Telegram::Bot::Client.new(TelegramConfig.telegram_token)
+      ActiveRecord::Base.establish_connection :adapter => "sqlite3",
+                                              :database => "db/Bilu.sqlite3"
       logger.info('server started')
     end
 

@@ -1,5 +1,6 @@
 require_relative 'logger/logging'
 require_relative 'routes'
+require_relative 'models/chat'
 Dir['controllers/*.rb'].each {|file| require_relative file}
 
 module Router
@@ -42,8 +43,19 @@ module Router
     map = Routes.message_map.find {|a| a.first.include? action}
     return nil if map.nil?
     route = map.last
+
+    chat = Chat.find_or_create_by(telegram_id: message.chat.id)
+    chat.telegram_type = message.chat.type
+
+    if chat.telegram_type == 'private'
+      chat.username = message.chat.username
+    elsif chat.telegram_type.include? 'group'
+      chat.grouptitle = message.chat.title
+    end
+
+    chat.save
     logger.info("Action '#{action}' routed to #{route[:controller]}##{route[:action]}")
     controller = route[:controller].new bot
-    controller.send route[:action], message
+    controller.send route[:action], message, chat
   end
 end
