@@ -21,8 +21,7 @@ module Bilu
       save_pid
       BiluSchema.create_db
       @bot = Telegram::Bot::Client.new(TelegramConfig.telegram_token)
-      ActiveRecord::Base.establish_connection adapter: 'postgresql',
-                                              database: ENV['DATABASE']
+      ActiveRecord::Base.establish_connection ENV['DATABASE_URL']
       logger.info('server started')
     end
 

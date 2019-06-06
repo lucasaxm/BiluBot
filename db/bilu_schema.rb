@@ -8,8 +8,7 @@ module BiluSchema
   class << self
     def create_db
 
-      ActiveRecord::Base.establish_connection adapter: 'postgresql',
-                                              database: ENV['DATABASE']
+      ActiveRecord::Base.establish_connection ENV['DATABASE_URL']
       begin
         ActiveRecord::Base.connection.create_table :chats do |t|
           t.string :telegram_id
