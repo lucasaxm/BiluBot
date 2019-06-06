@@ -2,11 +2,12 @@ require_relative 'domain/request_weather'
 require_relative 'config/telegram_config.rb'
 require_relative 'logger/logging'
 require_relative 'router'
+require_relative 'db/bilu_schema'
 require 'telegram/bot'
 require 'redd'
 require 'forecast_io'
 require 'active_record'
-require 'sqlite3'
+require 'pg'
 
 module Bilu
   include Logging
@@ -18,9 +19,10 @@ module Bilu
     def initialize
       @pidfile = "#{__FILE__}.pid"
       save_pid
+      BiluSchema.create_db
       @bot = Telegram::Bot::Client.new(TelegramConfig.telegram_token)
-      ActiveRecord::Base.establish_connection :adapter => "sqlite3",
-                                              :database => "db/Bilu.sqlite3"
+      ActiveRecord::Base.establish_connection adapter: 'postgresql',
+                                              database: ENV['DATABASE']
       logger.info('server started')
     end
 
