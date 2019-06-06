@@ -13,7 +13,7 @@ class ForecastController
   # Returns current weather for city in message text
   #
   # @param [Telegram::Bot::Types::Message] message Message received from Telegram
-  def get_current_weather(message)
+  def get_current_weather(message, chat)
     @service.get_current_weather(message)
   end
 end
