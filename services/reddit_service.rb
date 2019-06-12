@@ -279,7 +279,7 @@ class RedditService
   end
 
   def reddit_post_caption(post)
-    "(#{post.score}) - #{post.title}"
+    "#{post.over_18 ? "\u{1F51E} NSFW" : ""} #{post.spoiler ? "\u{26A0} SPOILER" : ""}\n #{post.title}"
   end
 
   def prepare_gifv_url(url)
