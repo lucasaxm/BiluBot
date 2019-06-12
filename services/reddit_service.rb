@@ -236,7 +236,7 @@ class RedditService
   def reddit_post_buttons(post)
     [
       Telegram::Bot::Types::InlineKeyboardButton.new(
-        text: 'Comments',
+        text: "#{post.num_comments} Comments",
         url: reddit_post_full_permalink(post)
       )
     ]
