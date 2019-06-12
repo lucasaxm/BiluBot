@@ -18,7 +18,7 @@ module Server
       error_count += 1
       logger.error("Exception Class: [#{e.class.name}]")
       logger.error("Exception Message: [#{e.message}']")
-      if message == Telegram::Bot::Types::Message
+      if message.class == Telegram::Bot::Types::Message
         if error_count < MAX_ATTEMPTS
           sleep(1)
           logger.info("Retrying (Attempt #{error_count + 1}/#{MAX_ATTEMPTS})")

@@ -243,21 +243,22 @@ class RedditService
   end
 
   def send_mp4(message, post, new_url = nil)
-    logger.debug("START - Sending #{post.url} as video through telegram API.")
+    mp4url = new_url.nil? ? post.url.to_s : new_url
+    logger.debug("START - Sending #{mp4url} as video through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: message.chat.id,
       action: 'upload_video'
     )
     @bilu.bot.api.send_video(
       chat_id: message.chat.id,
-      video: new_url.nil? ? post.url.to_s : new_url,
+      video: mp4url,
       caption: reddit_post_caption(post),
       reply_to_message_id: message.message_id,
       reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
         inline_keyboard: reddit_post_buttons(post)
       )
     )
-    logger.debug("END - Sending #{post.url} as video through telegram API.")
+    logger.debug("END - Sending #{mp4url} as video through telegram API.")
   end
 
   def send_gif(message, post)
