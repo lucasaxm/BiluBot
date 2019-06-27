@@ -72,7 +72,6 @@ class RedditService
       answer = 'You have seen all hot posts in this subreddit. Try again later.'
       @bilu.reply_with_text(answer, message)
     else
-      logger.debug("Sample: score=[#{sample.score}] title=[#{sample.title}] url=[#{sample.url}]")
       send_media(message, sample)
     end
   rescue Redd::NotFound, JSON::ParserError => e
@@ -92,6 +91,15 @@ class RedditService
   rescue Redd::Forbidden => e
     answer = "Access to this subreddit is forbidden. Reason: #{e.message.split[1]}"
     @bilu.reply_with_text(answer, message)
+  end
+
+  def get_media_from_url(message, _chat)
+    words = message.text.split('/')
+    comments_index = words.find_index('comments')
+    return if comments_index.nil? || words[comments_index + 1].nil?
+    post_id = 't3_' + words[comments_index + 1]
+    post = @reddit_session.from_ids(post_id).first
+    send_media(message, post)
   end
 
   def handle_inline_query(inline_query)
@@ -127,6 +135,7 @@ class RedditService
   private
 
   def send_media(message, post)
+    logger.debug("Post: score=[#{post.score}] title=[#{post.title}] url=[#{post.url}]")
     url_extension = post.url.split('.').last
     if url_extension == 'gif'
       send_gif(message, post)
@@ -135,10 +144,10 @@ class RedditService
     elsif url_extension == 'mp4'
       send_mp4(message, post)
     elsif post.url.include? 'gfycat.com'
-      gif_name = post.url.split('/').last
+      gif_name = post.url.split('/').last.split('-').first
       new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
       send_mp4(message, post, new_url)
-    else
+    elsif !post.is_self
       send_photo(message, post)
     end
   end
@@ -280,7 +289,7 @@ class RedditService
   end
 
   def reddit_post_caption(post)
-    "#{post.over_18 ? "\u{1F51E} NSFW" : ""} #{post.spoiler ? "\u{26A0} SPOILER" : ""}\n #{post.title}"
+    "#{post.over_18 ? "\u{1F51E} NSFW " : ''}#{post.spoiler ? "\u{26A0} SPOILER" : ''}\n#{post.title}"
   end
 
   def prepare_gifv_url(url)

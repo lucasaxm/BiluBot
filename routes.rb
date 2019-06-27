@@ -25,6 +25,10 @@ module Routes
     %r{chosen_inline_result} => {
       controller: RedditController,
       action: :handle_chosen_inline_result
+    },
+    %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$} => {
+      controller: RedditController,
+      action: :get_media_from_url
     }
   }.freeze
 end
