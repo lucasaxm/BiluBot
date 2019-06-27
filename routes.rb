@@ -6,27 +6,23 @@ module Routes
   end
 
   @message_map = {
-    %i[r reddit] => {
+    %r{^/((r)|(reddit)) \w+$}i => {
       controller: RedditController,
       action: :get_media_from_subreddit
     },
-    %i[ow] => {
-      controller: OverwatchController,
-      action: :sub_router
-    },
-    %i[weather] => {
+    %r{^/weather \w+$}i => {
       controller: ForecastController,
       action: :get_current_weather
     },
-    %i[markov markov@mkv_bot] => {
+    %r{^/markov(@mkv_bot)?$}i => {
       controller: MiscController,
       action: :delete_message
     },
-    %i[inline_query] => {
+    %r{inline_query} => {
       controller: RedditController,
       action: :handle_inline_query
     },
-    %i[chosen_inline_result] => {
+    %r{chosen_inline_result} => {
       controller: RedditController,
       action: :handle_chosen_inline_result
     }
