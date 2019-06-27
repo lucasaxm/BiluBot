@@ -22,40 +22,38 @@ module Router
         logger.debug("Query '#{message.query}' being typed (found '#{response['result'].first['inline_query']['query']}')")
         return nil
       end
-      action = :inline_query
+      text = :inline_query
       #
       # when Telegram::Bot::Types::CallbackQuery
       #   # callback query not needed
       #
     when Telegram::Bot::Types::ChosenInlineResult
-      action = :chosen_inline_result
+      text = :chosen_inline_result
 
     when Telegram::Bot::Types::Message
-      entities = message.entities
-      return nil if entities.nil? || entities.empty? || entities.first.type != 'bot_command'
-      action = message.text.split(' ').first[1..-1].downcase
-      action = action.include?('@') && action.split('@').last.casecmp(@botname).zero? ? action.split('@')[0..-2].join('@').to_sym : action.to_sym
-      return nil if action == %i[inline_query chosen_inline_result]
+      text = message.text
+      return nil if text == %i[inline_query chosen_inline_result]
     else
-      action = nil
+      text = nil
 
     end
-    map = Routes.message_map.find {|a| a.first.include? action}
-    return nil if map.nil?
-    route = map.last
+    routes = Routes.message_map.select {|a| a.match? text}
+    return nil if routes.nil?
 
     chat = Chat.find_or_create_by(telegram_id: message.chat.id)
     chat.telegram_type = message.chat.type
-
     if chat.telegram_type == 'private'
       chat.username = message.chat.username
     elsif chat.telegram_type.include? 'group'
       chat.grouptitle = message.chat.title
     end
-
     chat.save
-    logger.info("Action '#{action}' routed to #{route[:controller]}##{route[:action]}")
-    controller = route[:controller].new bot
-    controller.send route[:action], message, chat
+
+    routes.each do |map|
+      route = map.last
+      logger.info("Action '#{text}' routed to #{route[:controller]}##{route[:action]}")
+      controller = route[:controller].new bot
+      controller.send route[:action], message, chat
+    end
   end
 end
