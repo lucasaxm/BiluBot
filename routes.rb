@@ -10,7 +10,7 @@ module Routes
       controller: RedditController,
       action: :get_media_from_subreddit
     },
-    %r{^/weather \w+( \w+)*$}i => {
+    %r{^\/weather [[:alpha:]]+( [[:alpha:]]+)*$}i => {
       controller: ForecastController,
       action: :get_current_weather
     },
