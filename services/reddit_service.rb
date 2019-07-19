@@ -98,7 +98,7 @@ class RedditService
     comments_index = words.find_index('comments')
     return if comments_index.nil? || words[comments_index + 1].nil?
     post_id = 't3_' + words[comments_index + 1]
-    post = @reddit_session.from_ids(post_id).first
+    post = reddit_post_from_id(post_id)
     send_media(message, post)
   end
 
@@ -134,8 +134,13 @@ class RedditService
 
   private
 
+  def reddit_post_from_id(post_id)
+    @reddit_session.from_ids(post_id).first
+  end
+
   def send_media(message, post)
     logger.debug("Post: score=[#{post.score}] title=[#{post.title}] url=[#{post.url}]")
+    return if post.is_self
     url_extension = post.url.split('.').last
     if url_extension == 'gif'
       send_gif(message, post)
@@ -147,7 +152,9 @@ class RedditService
       gif_name = post.url.split('/').last.split('-').first
       new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
       send_mp4(message, post, new_url)
-    elsif !post.is_self
+    elsif post.is_reddit_media_domain && post.is_video
+      send_mp4(message, post, post.media[:reddit_video][:fallback_url])
+    else
       send_photo(message, post)
     end
   end
@@ -321,8 +328,15 @@ class RedditService
   def get_subreddit_hot_media_posts(subreddit)
     logger.debug('START - Fetching and filtering posts.')
     selection = get_subreddit_hot_posts(subreddit).find_all do |p|
-      !p.url.nil? && ((p.url.end_with? '.jpg') || (p.url.end_with? '.png') || (p.url.end_with? '.gif') ||
-        (p.url.end_with? '.gifv') || (p.url.end_with? '.mp4') || (p.url.include? 'gfycat.com'))
+      !p.url.nil? &&
+        ((p.url.end_with? '.jpg') ||
+          (p.url.end_with? '.png') ||
+          (p.url.end_with? '.gif') ||
+          (p.url.end_with? '.gifv') ||
+          (p.url.end_with? '.mp4') ||
+          (p.url.include? 'gfycat.com') ||
+          (p.is_reddit_media_domain && p.is_video)
+        )
     end
     logger.debug('END - Fetching and filtering posts.')
     selection
