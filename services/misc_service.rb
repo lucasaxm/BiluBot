@@ -9,7 +9,7 @@ class MiscService
 
   def delete_message(message)
     @bilu.delete_message(message)
-    logger.info('markov call deleted')
+    logger.info('message deleted')
   rescue Telegram::Bot::Exceptions::ResponseError => e
     throw e unless e.message.include? 'message can\'t be deleted'
     logger.error('message can\'t be deleted')

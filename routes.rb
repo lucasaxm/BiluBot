@@ -29,6 +29,10 @@ module Routes
     %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$} => {
       controller: RedditController,
       action: :get_media_from_url
+    },
+    %r{^\/s\/.*\/.*$}i => {
+      controller: MiscController,
+      action: :delete_message
     }
   }.freeze
 end
