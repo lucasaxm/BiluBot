@@ -11,7 +11,12 @@ class MiscService
     @bilu.delete_message(message)
     logger.info('message deleted')
   rescue Telegram::Bot::Exceptions::ResponseError => e
-    throw e unless e.message.include? 'message can\'t be deleted'
-    logger.error('message can\'t be deleted')
+    if e.message.include? 'message can\'t be deleted'
+      logger.error('message can\'t be deleted')
+    elsif e.message.include? 'error_code: "400"'
+      logger.error('message no longer exists')
+    else
+      throw e
+    end
   end
 end

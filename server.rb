@@ -12,7 +12,7 @@ module Server
 
   bot.listen do |message|
     begin
-      bot.process_update message
+      bot.process_update message unless message.nil?
       error_count = 0
     rescue StandardError => e
       error_count += 1
