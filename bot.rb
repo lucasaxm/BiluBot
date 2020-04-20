@@ -51,11 +51,16 @@ module Bilu
     end
 
     def reply_with_text(text, message)
-      logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
+      msg = if message.class == Telegram::Bot::Types::CallbackQuery
+              message.message
+            else
+              message
+            end
+      logger.info("Sending message '#{text.to_json}' to #{msg.chat.id}.")
       @bot.api.send_message(
-        chat_id: message.chat.id,
+        chat_id: msg.chat.id,
         text: text,
-        reply_to_message_id: message.message_id
+        reply_to_message_id: msg.message_id
       )
     end
 

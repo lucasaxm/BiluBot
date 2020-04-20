@@ -15,10 +15,21 @@ class RedditService
   def initialize(bilu)
     @reddit_session = RedditConfig.new_reddit_session
     @bilu = bilu
+    @available_posts = 0
+    @callback = nil
+  end
+
+  def get_media_from_subreddit_callback(message, chat)
+    @callback = message
+    get_media_from_subreddit(message, chat)
   end
 
   def get_media_from_subreddit(message, chat)
-    text_array = message.text.split(' ')
+    text_array = if @callback.nil?
+                   message.text.split(' ')
+                 else
+                   message.data.split(' ')[1..-1]
+                 end
     if text_array.size <= 1
       send_help_message(message)
       return
@@ -32,7 +43,7 @@ class RedditService
       return
     end
     @bilu.bot.api.send_chat_action(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       action: 'typing'
     )
     hot_posts = get_subreddit_hot_media_posts(subreddit)
@@ -64,6 +75,7 @@ class RedditService
       reddit_post.chats << chat
       reddit_post.save
       logger.info("Sending ##{i + 1} of #{hot_posts.size} posts.")
+      @available_posts = hot_posts.size - (i + 1)
       sample = hot_post
       break
     end
@@ -244,14 +256,14 @@ class RedditService
   def send_photo(message, post)
     logger.debug("START - Sending #{post.url} as photo through telegram API.")
     @bilu.bot.api.send_chat_action(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       action: 'upload_photo'
     )
     @bilu.bot.api.send_photo(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       photo: post.url.to_s,
       caption: reddit_post_caption(post),
-      reply_to_message_id: message.message_id,
+      reply_to_message_id: get_telegram_message_id(message),
       reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
         inline_keyboard: reddit_post_buttons(post)
       )
@@ -260,26 +272,33 @@ class RedditService
   end
 
   def reddit_post_buttons(post)
-    [
+    button_array = [
       Telegram::Bot::Types::InlineKeyboardButton.new(
         text: "#{post.num_comments} Comments",
         url: reddit_post_full_permalink(post)
       )
     ]
+    if @available_posts.positive?
+      button_array << Telegram::Bot::Types::InlineKeyboardButton.new(
+        text: "Next post? (#{@available_posts} post#{'s' if @available_posts > 1} left)",
+        callback_data: "callback /r #{post.subreddit.display_name}"
+      )
+    end
+    button_array
   end
 
   def send_mp4(message, post, new_url = nil)
     mp4url = new_url.nil? ? post.url.to_s : new_url
     logger.debug("START - Sending #{mp4url} as video through telegram API.")
     @bilu.bot.api.send_chat_action(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       action: 'upload_video'
     )
     @bilu.bot.api.send_video(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       video: mp4url,
       caption: reddit_post_caption(post),
-      reply_to_message_id: message.message_id,
+      reply_to_message_id: get_telegram_message_id(message),
       reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
         inline_keyboard: reddit_post_buttons(post)
       )
@@ -290,14 +309,14 @@ class RedditService
   def send_gif(message, post)
     logger.debug("START - Sending #{post.url} as document through telegram API.")
     @bilu.bot.api.send_chat_action(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       action: 'upload_video'
     )
     @bilu.bot.api.send_document(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       document: post.url,
       caption: reddit_post_caption(post),
-      reply_to_message_id: message.message_id,
+      reply_to_message_id: get_telegram_message_id(message),
       reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
         inline_keyboard: reddit_post_buttons(post)
       )
@@ -305,8 +324,29 @@ class RedditService
     logger.debug("END - Sending #{post.url} as document through telegram API.")
   end
 
+
+  def get_telegram_chat_id(message)
+    if @callback.nil?
+      message.chat.id
+    else
+      message.message.chat.id
+    end
+  end
+
+  def get_telegram_message_id(message)
+    if @callback.nil?
+      message.message_id
+    else
+      message.message.message_id
+    end
+  end
+
   def reddit_post_caption(post)
-    "#{post.over_18 ? "\u{1F51E} NSFW " : ''}#{post.spoiler ? "\u{26A0} SPOILER" : ''}\n#{post.title}"
+    caption = "#{post.over_18 ? "\u{1F51E} NSFW " : ''}#{post.spoiler ? "\u{26A0} SPOILER" : ''}\n#{post.title}"
+    unless @callback.nil?
+      caption += "\n\n[post request by #{@callback.from.username.nil? ? @callback.from.first_name : '@' + @callback.from.username}]"
+    end
+    caption
   end
 
   def prepare_gifv_url(url)
@@ -320,14 +360,14 @@ class RedditService
     new_url = prepare_gifv_url(post.url)
     logger.debug("START - Sending #{new_url} as video through telegram API.")
     @bilu.bot.api.send_chat_action(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       action: 'upload_video'
     )
     @bilu.bot.api.send_video(
-      chat_id: message.chat.id,
+      chat_id: get_telegram_chat_id(message),
       video: new_url,
       caption: reddit_post_caption(post),
-      reply_to_message_id: message.message_id,
+      reply_to_message_id: get_telegram_message_id(message),
       reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
         inline_keyboard: reddit_post_buttons(post)
       )

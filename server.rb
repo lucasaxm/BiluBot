@@ -1,5 +1,5 @@
 require 'dotenv'
-Dotenv.load('tokens.env')
+Dotenv.load('devtokens.env')
 require_relative 'bot'
 
 module Server

@@ -34,8 +34,9 @@ class Logger4Telegram < Logger
       @chat_type = message.chat.type == 'private' ? 'private' : message.chat.title
       @chat_type << " (#{message.chat.id})"
 
-#   when Telegram::Bot::Types::CallbackQuery
-#     # callback query not needed
+    when Telegram::Bot::Types::CallbackQuery
+      @chat_type = message.message.chat.type == 'private' ? 'private' : message.message.chat.title
+      @chat_type << " (#{message.message.chat.id})"
 #
 #   when Telegram::Bot::Types::ChosenInlineResult
 #     # no inline query

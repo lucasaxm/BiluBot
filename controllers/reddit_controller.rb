@@ -16,6 +16,10 @@ class RedditController
     @service.get_media_from_subreddit(message, chat)
   end
 
+  def get_media_from_subreddit_callback(message, chat)
+    @service.get_media_from_subreddit_callback(message, chat)
+  end
+
   def get_media_from_url(message, chat)
     @service.get_media_from_url(message, chat)
   end

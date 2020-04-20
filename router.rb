@@ -23,10 +23,10 @@ module Router
         return nil
       end
       text = :inline_query
-      #
-      # when Telegram::Bot::Types::CallbackQuery
-      #   # callback query not needed
-      #
+
+    when Telegram::Bot::Types::CallbackQuery
+      text = message.data
+
     when Telegram::Bot::Types::ChosenInlineResult
       text = :chosen_inline_result
 
@@ -40,14 +40,7 @@ module Router
     routes = Routes.message_map.select {|a| a.match? text}
     return nil if routes.nil?
 
-    chat = Chat.find_or_create_by(telegram_id: message.chat.id)
-    chat.telegram_type = message.chat.type
-    if chat.telegram_type == 'private'
-      chat.username = message.chat.username
-    elsif chat.telegram_type.include? 'group'
-      chat.grouptitle = message.chat.title
-    end
-    chat.save
+    chat = save_chat(message)
 
     routes.each do |map|
       route = map.last
@@ -55,5 +48,27 @@ module Router
       controller = route[:controller].new bot
       controller.send route[:action], message, chat
     end
+  end
+
+  def self.save_chat(message)
+    if message.class == Telegram::Bot::Types::CallbackQuery
+      chat = Chat.find_or_create_by(telegram_id: message.message.chat.id)
+      chat.telegram_type = message.message.chat.type
+      if chat.telegram_type == 'private'
+        chat.username = message.from.username
+      elsif chat.telegram_type.include? 'group'
+        chat.grouptitle = message.message.chat.title
+      end
+    else
+      chat = Chat.find_or_create_by(telegram_id: message.chat.id)
+      chat.telegram_type = message.chat.type
+      if chat.telegram_type == 'private'
+        chat.username = message.chat.username
+      elsif chat.telegram_type.include? 'group'
+        chat.grouptitle = message.chat.title
+      end
+    end
+    chat.save
+    chat
   end
 end

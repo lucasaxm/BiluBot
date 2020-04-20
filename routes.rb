@@ -10,6 +10,10 @@ module Routes
       controller: RedditController,
       action: :get_media_from_subreddit
     },
+    %r{^callback /((r)|(reddit)) \w+$}i => {
+      controller: RedditController,
+      action: :get_media_from_subreddit_callback
+    },
     %r{^\/weather [[:alpha:]]+( [[:alpha:]]+)*$}i => {
       controller: ForecastController,
       action: :get_current_weather
