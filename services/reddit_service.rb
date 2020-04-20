@@ -153,7 +153,17 @@ class RedditService
       new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
       send_mp4(message, post, new_url)
     elsif post.is_reddit_media_domain && post.is_video
-      send_mp4(message, post, post.media[:reddit_video][:fallback_url])
+      lewla_endpoint = 'https://lew.la/reddit'
+      uri = URI("#{lewla_endpoint}/download")
+      res = Net::HTTP.post_form(uri, 'url' => reddit_post_full_permalink(post))
+      logger.info("Reply from #{lewla_endpoint}: #{res.body}.")
+      if res.body.include? 'ERROR'
+        answer = "Couldn't get reddit video."
+        @bilu.reply_with_text(answer, message)
+        return
+      else
+        send_mp4(message, post, "#{lewla_endpoint}/clips/#{res.body}.mp4")
+      end
     else
       send_photo(message, post)
     end
@@ -216,7 +226,7 @@ class RedditService
   end
 
   def reddit_post_full_permalink(post)
-    "https://reddit.com#{post.permalink}"
+    "https://www.reddit.com#{post.permalink}"
   end
 
   def make_telegram_html_url(url)
