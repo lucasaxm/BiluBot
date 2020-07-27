@@ -1,5 +1,6 @@
 require 'open-uri'
 require 'telegram/bot'
+require 'nokogiri'
 require_relative '../logger/logging'
 require_relative '../config/reddit_config'
 require_relative '../models/reddit_post'
@@ -165,17 +166,21 @@ class RedditService
       new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
       send_mp4(message, post, new_url)
     elsif post.is_reddit_media_domain && post.is_video
-      lewla_endpoint = 'https://lew.la/reddit'
-      uri = URI("#{lewla_endpoint}/download")
-      res = Net::HTTP.post_form(uri, 'url' => reddit_post_full_permalink(post))
-      logger.info("Reply from #{lewla_endpoint}: #{res.body}.")
-      if res.body.include? 'ERROR'
-        answer = "Couldn't get reddit video."
-        @bilu.reply_with_text(answer, message)
-        return
-      else
-        send_mp4(message, post, "#{lewla_endpoint}/clips/#{res.body}.mp4")
-      end
+      endpoint = 'https://reddit.tube/parse'
+      res = open(endpoint + '?url=' + reddit_post_full_permalink(post)).read
+      logger.info("Reply from #{endpoint}: #{res}.")
+      res_hash = JSON.parse(res)
+      source = open(res_hash['share_url'])
+      parsed_data = Nokogiri::HTML.parse(source)
+      mp4_url = parsed_data.css('video').first.css('source').first[:src]
+      send_mp4(message, post, mp4_url)
+
+      # if res.body.include? 'ERROR'
+      #   answer = "Couldn't get reddit video."
+      #   @bilu.reply_with_text(answer, message)
+      #   return
+      # else
+      # end
     else
       send_photo(message, post)
     end
