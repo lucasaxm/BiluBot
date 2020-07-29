@@ -12,7 +12,7 @@ module Server
 
   bot.listen do |message|
     begin
-      if !message.nil? && message.chat.type != 'channel'
+      if !message.nil? && (message.class == Telegram::Bot::Types::CallbackQuery || message.chat.type != 'channel')
         bot.process_update message
         error_count = 0
       end
