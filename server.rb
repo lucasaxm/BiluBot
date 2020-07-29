@@ -12,8 +12,10 @@ module Server
 
   bot.listen do |message|
     begin
-      bot.process_update message unless message.nil?
-      error_count = 0
+      if !message.nil? && message.chat.type != 'channel'
+        bot.process_update message
+        error_count = 0
+      end
     rescue StandardError => e
       error_count += 1
       logger.error("Exception Class: [#{e.class.name}]")
@@ -27,7 +29,7 @@ module Server
           logger.error('Sending error message and continuing.')
           answer = "Error #{e.class.name}: #{e.message}."
           logger.error("Message=[#{answer}]")
-          bot.reply_with_text(answer, message)
+          bot.log_to_channel(answer, message)
         end
       end
     end
