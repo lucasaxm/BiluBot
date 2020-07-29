@@ -155,9 +155,7 @@ class RedditService
     logger.debug("Post: score=[#{post.score}] title=[#{post.title}] url=[#{post.url}]")
     return if post.is_self
     url_extension = post.url.split('.').last
-    if url_extension == 'gif'
-      send_gif(message, post)
-    elsif url_extension == 'gifv'
+    if url_extension == 'gif' || url_extension == 'gifv'
       send_gifv(message, post)
     elsif url_extension == 'mp4'
       send_mp4(message, post)
