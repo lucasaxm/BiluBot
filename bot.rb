@@ -64,6 +64,31 @@ module Bilu
       )
     end
 
+    def send_message(text, msg, reply=false)
+      logger.info("Sending message '#{text}' to #{msg.chat.id}.")
+      if reply
+        @bot.api.send_message(
+            chat_id: msg.chat.id,
+            text: text,
+            reply_to_message_id: msg.message_id
+        )
+      else
+        @bot.api.send_message(
+            chat_id: msg.chat.id,
+            text: text
+        )
+      end
+    end
+
+    def forward_message_same_chat(message)
+      logger.info("Forwarding message id '#{message.message_id}' to #{message.chat.id}.")
+      @bot.api.forward_message(
+          chat_id: message.chat.id,
+          from_chat_id: message.chat.id,
+          message_id: message.message_id
+      )
+    end
+
     def log_to_channel(text, message)
       logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
       channel_id = ENV['TELEGRAM_LOG_CHANNEL_ID']

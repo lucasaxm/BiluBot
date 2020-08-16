@@ -12,4 +12,8 @@ class MiscController
     @service.delete_message(message)
   end
 
+  def spam(message, chat)
+    @service.spam(message)
+  end
+
 end

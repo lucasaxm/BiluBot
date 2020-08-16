@@ -37,6 +37,14 @@ module Routes
     %r{^\/s\/.*\/.*$}i => {
       controller: MiscController,
       action: :delete_message
+    },
+    %r{^\/spam$}i => {
+        controller: MiscController,
+        action: :spam
+    },
+    %r{^\/spam .*$}i => {
+        controller: MiscController,
+        action: :spam
     }
   }.freeze
 end
