@@ -26,7 +26,6 @@ module Server
           logger.info("Retrying (Attempt #{error_count + 1}/#{MAX_ATTEMPTS})")
           retry
         elsif !bot.nil?
-          logger.error('Sending error message and continuing.')
           answer = "Error #{e.class.name}: #{e.message}."
           logger.error("Message=[#{answer}]")
           bot.log_to_channel(answer, message)

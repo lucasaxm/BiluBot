@@ -58,13 +58,13 @@ module Bilu
             end
       logger.info("Sending message '#{text.to_json}' to #{msg.chat.id}.")
       @bot.api.send_message(
-        chat_id: msg.chat.id,
-        text: text,
-        reply_to_message_id: msg.message_id
+          chat_id: msg.chat.id,
+          text: text,
+          reply_to_message_id: msg.message_id
       )
     end
 
-    def send_message(text, msg, reply=false)
+    def send_message(text, msg, reply = false)
       logger.info("Sending message '#{text}' to #{msg.chat.id}.")
       if reply
         @bot.api.send_message(
@@ -90,52 +90,57 @@ module Bilu
     end
 
     def log_to_channel(text, message)
-      logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
-      channel_id = ENV['TELEGRAM_LOG_CHANNEL_ID']
-      if !message.nil? && !message.chat.id.nil?
-        @bot.api.send_message(
-          chat_id: channel_id,
-          text: 'issue found with message:'
-        )
-        @bot.api.forward_message(
-          chat_id: channel_id,
-          from_chat_id: message.chat.id,
-          message_id: message.message_id
-        )
-        if !message.reply_to_message.nil?
+      begin
+        logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
+        channel_id = ENV['TELEGRAM_LOG_CHANNEL_ID']
+        if !message.nil? && !message.chat.id.nil?
           @bot.api.send_message(
-            chat_id: channel_id,
-            text: 'that was a reply to:'
+              chat_id: channel_id,
+              text: 'issue found with message:'
           )
           @bot.api.forward_message(
-            chat_id: channel_id,
-            from_chat_id: message.chat.id,
-            message_id: message.reply_to_message.message_id
+              chat_id: channel_id,
+              from_chat_id: message.chat.id,
+              message_id: message.message_id
+          )
+          if !message.reply_to_message.nil?
+            @bot.api.send_message(
+                chat_id: channel_id,
+                text: 'that was a reply to:'
+            )
+            @bot.api.forward_message(
+                chat_id: channel_id,
+                from_chat_id: message.chat.id,
+                message_id: message.reply_to_message.message_id
+            )
+          end
+        else
+          @bot.api.send_message(
+              chat_id: channel_id,
+              text: text
           )
         end
-      else
-        @bot.api.send_message(
-          chat_id: channel_id,
-          text: text
-        )
+      rescue StandardError => e
+        answer = "Error #{e.class.name}: #{e.message}."
+        logger.error("Message=[#{answer}]")
       end
     end
 
     def delete_message(message)
       logger.info("Deleting message #{message.text.nil? ? message.message_id : '\'' + message.text + '\''} from #{message.chat.id}.")
       @bot.api.delete_message(
-        chat_id: message.chat.id,
-        message_id: message.message_id,
+          chat_id: message.chat.id,
+          message_id: message.message_id,
       )
     end
 
     def reply_with_markdown_text(text, message)
       logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
       @bot.api.send_message(
-        chat_id: message.chat.id,
-        text: text,
-        parse_mode: 'markdown',
-        reply_to_message_id: message.message_id
+          chat_id: message.chat.id,
+          text: text,
+          parse_mode: 'markdown',
+          reply_to_message_id: message.message_id
       )
     end
 
