@@ -10,6 +10,6 @@ class DistortController
   end
 
   def distort(message, chat)
-    @service.distort
+    @service.distort(message)
   end
 end
