@@ -164,8 +164,9 @@ module Bilu
     def download_file(file_path, file_name)
       token = TelegramConfig.telegram_token
       url = "https://api.telegram.org/file/bot#{token}/#{file_path}"
-      Down.download(url)
-        #FileUtils.mv(tempfile.path, "./#{file_name}")
+      temp_file = Down.download(url)
+      logger.info("file downloaded '#{temp_file.path}'.")
+      temp_file
     end
 
   end

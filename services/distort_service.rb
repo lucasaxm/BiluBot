@@ -26,13 +26,18 @@ class DistortService
       logger.info('image as document found.')
       file_id = m.document.file_id
       file_name = "#{file_id}.#{m.document.mime_type.split('/')[1]}"
+    else
+      return
     end
 
 
     file_path = @bilu.get_file(file_id)
-    logger.info("file_path = '#{file_path}'.")
+    logger.info("telegram file path = '#{file_path}'.")
 
-    return if File.extname(file_path) == '.tgs'
+    if File.extname(file_path) == '.tgs'
+      logger.warn 'animated sticker found, aborting distortion.'
+      return
+    end
 
     @bilu.bot.api.send_chat_action(
         chat_id: message.chat.id,
@@ -41,16 +46,21 @@ class DistortService
     temp_file = @bilu.download_file(file_path, file_name)
 
     width, height = FastImage.size(temp_file.path)
+    logger.info "image resolution #{width}x#{height}"
+
     img = ImageList.new(temp_file.path)
 
     temp_file.close
 
+    logger.info 'applying liquid rescale'
     img = img.liquid_rescale(width*0.35, height*0.35, 3, 5)
     img.resize!(width, height)
-    #img = img.negate
+
+    logger.info "saving scaled photo to #{file_name}"
     img.write(file_name)
     img.destroy!
 
+    logger.info "sending scaled photo"
     upload = Faraday::UploadIO.new(file_name, 'image/jpeg')
     @bilu.bot.api.send_photo(
         chat_id: message.chat.id,
@@ -62,6 +72,7 @@ class DistortService
 
 
     FileUtils.rm(file_name)
+    logger.info "file #{file_name} deleted"
 
   end
 
