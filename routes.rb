@@ -50,22 +50,22 @@ module Routes
         controller: MiscController,
         action: :delete_message
     },
-    %r{^\/distort$}i => {
-        controller: DistortController,
-        action: :distort
-    },
-    %r{^\/distort@[^@]*$}i => {
-        controller: DistortController,
-        action: :distort
-    },
-    %r{^\/d$}i => {
-        controller: DistortController,
-        action: :distort
-    },
+    # %r{^\/distort$}i => {
+    #     controller: DistortController,
+    #     action: :distort
+    # },
+    # %r{^\/distort@[^@]*$}i => {
+    #     controller: DistortController,
+    #     action: :distort
+    # },
+    # %r{^\/d$}i => {
+    #     controller: DistortController,
+    #     action: :distort
+    # },
     %r{^scale$}i => {
         controller: DistortController,
         action: :distort
-    },
+    }
 
   }.freeze
 end
