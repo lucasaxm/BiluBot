@@ -28,11 +28,15 @@ GEM
     domain_name (0.5.20180417)
       unf (>= 0.0.5, < 1.0.0)
     dotenv (2.7.2)
+    down (5.2.0)
+      addressable (~> 2.5)
     equalizer (0.0.11)
     faraday (0.15.4)
       multipart-post (>= 1.2, < 3)
     faraday_middleware (0.13.1)
       faraday (>= 0.7.4, < 1.0)
+    fastimage (2.2.0)
+    fileutils (1.4.1)
     forecast_io (2.0.2)
       faraday
       hashie
@@ -61,6 +65,7 @@ GEM
     public_suffix (3.1.0)
     redd (0.8.8)
       http (~> 2.2)
+    rmagick (4.1.2)
     telegram-bot-ruby (0.8.6.1)
       faraday
       inflecto
@@ -85,12 +90,16 @@ DEPENDENCIES
   activerecord (~> 5.0, >= 5.0.0.1)
   awesome_print
   dotenv (~> 2.5)
+  down
   faraday
   faraday_middleware
+  fastimage
+  fileutils
   forecast_io
   nokogiri
   pg (>= 0.19.0.beta)
   redd (~> 0.8.8)
+  rmagick
   telegram-bot-ruby (~> 0.8.6.1)
   timezone (~> 1.0)
 

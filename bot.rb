@@ -8,6 +8,8 @@ require 'redd'
 require 'forecast_io'
 require 'active_record'
 require 'pg'
+require "down"
+require "fileutils"
 
 module Bilu
   include Logging
@@ -148,5 +150,30 @@ module Bilu
       logger.message = message
       Router.route_message(self, message)
     end
+
+    # returns file path
+    def get_file(file_id)
+      file_hash = @bot.api.get_file(file_id: file_id)
+      if file_hash.nil? || !file_hash['ok']
+        log.error('Error getting file from telegram')
+        return
+      end
+      file_hash['result']['file_path']
+    end
+
+    def download_file(telegram_file_path, save_path=nil)
+      token = TelegramConfig.telegram_token
+      url = "https://api.telegram.org/file/bot#{token}/#{telegram_file_path}"
+      temp_file = Down.download(url)
+      path = temp_file.path
+      logger.info("file downloaded '#{path}'.")
+      temp_file.close
+
+      return path if save_path.nil?
+      FileUtils.mv(path, save_path)
+      logger.info("file moved to '#{save_path}'.")
+      save_path
+    end
+
   end
 end
