@@ -31,10 +31,10 @@ class DistortService
     end
 
 
-    file_path = @bilu.get_file(file_id)
-    logger.info("telegram file path = '#{file_path}'.")
+    telegram_file_path = @bilu.get_file(file_id)
+    logger.info("telegram file path = '#{telegram_file_path}'.")
 
-    if File.extname(file_path) == '.tgs'
+    if File.extname(telegram_file_path) == '.tgs'
       logger.warn 'animated sticker found, aborting distortion.'
       return
     end
@@ -43,14 +43,12 @@ class DistortService
         chat_id: message.chat.id,
         action: 'upload_photo'
     )
-    temp_file = @bilu.download_file(file_path, file_name)
+    file_path = @bilu.download_file(telegram_file_path, file_name)
 
-    width, height = FastImage.size(temp_file.path)
+    width, height = FastImage.size(file_path)
     logger.info "image resolution #{width}x#{height}"
 
-    img = ImageList.new(temp_file.path)
-
-    temp_file.close
+    img = ImageList.new(file_path)
 
     logger.info 'applying liquid rescale'
     img = img.liquid_rescale(width*0.35, height*0.35, 3, 5)

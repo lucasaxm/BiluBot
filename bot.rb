@@ -161,12 +161,18 @@ module Bilu
       file_hash['result']['file_path']
     end
 
-    def download_file(file_path, file_name)
+    def download_file(telegram_file_path, save_path=nil)
       token = TelegramConfig.telegram_token
-      url = "https://api.telegram.org/file/bot#{token}/#{file_path}"
+      url = "https://api.telegram.org/file/bot#{token}/#{telegram_file_path}"
       temp_file = Down.download(url)
-      logger.info("file downloaded '#{temp_file.path}'.")
-      temp_file
+      path = temp_file.path
+      logger.info("file downloaded '#{path}'.")
+      temp_file.close
+
+      return path if save_path.nil?
+      FileUtils.mv(path, save_path)
+      logger.info("file moved to '#{save_path}'.")
+      save_path
     end
 
   end
