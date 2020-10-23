@@ -10,6 +10,10 @@ class ImageService
     @bilu = bilu
   end
 
+  def is_image? m
+    !m.photo.empty? || !m.sticker.nil? || (!m.document.nil? && m.document.mime_type.start_with?('image/'))
+  end
+
   def get_image_file_info(m)
     if !m.photo.empty?
       logger.info('photo found.')
@@ -45,14 +49,31 @@ class ImageService
     @bilu.download_file(telegram_file_path, file_name)
   end
 
-  def distort(message)
+  def distort_reply(message)
     return unless message.reply_to_message
-    m = message.reply_to_message
+    distort message.reply_to_message
+  end
 
+  def random_deepfry(message)
+    # percentage integer
+    probability = 1
+    return unless is_image? message
+    roll = rand 100
+    deepfry message if roll < probability
+  end
+
+  def deepfry_reply(message)
+    return unless message.reply_to_message
+    deepfry message.reply_to_message
+  end
+
+  private
+
+  def distort(m)
     file_path = download_image m
 
     @bilu.bot.api.send_chat_action(
-        chat_id: message.chat.id,
+        chat_id: m.chat.id,
         action: 'upload_photo'
     )
 
@@ -66,14 +87,11 @@ class ImageService
     logger.info "file #{file_path} deleted"
   end
 
-  def deepfry(message)
-    return unless message.reply_to_message
-    m = message.reply_to_message
-
+  def deepfry(m)
     file_path = download_image m
 
     @bilu.bot.api.send_chat_action(
-        chat_id: message.chat.id,
+        chat_id: m.chat.id,
         action: 'upload_photo'
     )
 
@@ -87,8 +105,6 @@ class ImageService
     FileUtils.rm(file_path)
     logger.info "file #{file_path} deleted"
   end
-
-  private
 
   def distort_image(file_path)
     img = ImageList.new(file_path)
@@ -126,13 +142,13 @@ class ImageService
     height, width = get_image_resolution(file_path)
     logger.info "applying deep fry and saving to #{file_path}"
     img.liquid_rescale(width * 0.5, height * 0.5, 3, 5)
-    .resize(width, height)
-    .modulate(0.5, 2, 2)
-    .emboss(0.5)
-    .implode(-0.4)
-    .add_noise(Magick::GaussianNoise)
-    .write(file_path)
-    .destroy!
+        .resize(width, height)
+        .modulate(0.5, 2, 2)
+        .emboss(0.5)
+        .implode(-0.4)
+        .add_noise(Magick::GaussianNoise)
+        .write(file_path)
+        .destroy!
   end
 
   def get_image_resolution(file_path)

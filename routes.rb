@@ -52,23 +52,27 @@ module Routes
     },
     %r{^\/distort$}i => {
         controller: ImageController,
-        action: :distort
+        action: :distort_reply
     },
     %r{^\/distort@[^@]*$}i => {
         controller: ImageController,
-        action: :distort
+        action: :distort_reply
     },
     %r{^\/d$}i => {
         controller: ImageController,
-        action: :distort
+        action: :distort_reply
     },
     %r{^scale$}i => {
         controller: ImageController,
-        action: :distort
+        action: :distort_reply
     },
     %r{^fry}i => {
       controller: ImageController,
-      action: :deepfry
+      action: :deepfry_reply
+    },
+    %r{^$}i => {
+        controller: ImageController,
+        action: :random_deepfry
     }
 
   }.freeze

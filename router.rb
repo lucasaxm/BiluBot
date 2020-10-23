@@ -37,14 +37,14 @@ module Router
       text = nil
 
     end
-    routes = Routes.message_map.select {|a| a.match? text}
+    routes = Routes.message_map.select {|a| a.match? text.to_s}
     return nil if routes.nil?
 
     chat = save_chat(message)
 
     routes.each do |map|
       route = map.last
-      logger.info("Action '#{text}' routed to #{route[:controller]}##{route[:action]}")
+      logger.info("Action '#{text}' routed to #{route[:controller]}##{route[:action]}") unless text.nil?
       controller = route[:controller].new bot
       controller.send route[:action], message, chat
     end

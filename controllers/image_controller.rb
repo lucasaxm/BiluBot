@@ -9,11 +9,15 @@ class ImageController
     @service = ImageService.new(bilu)
   end
 
-  def distort(message, chat)
-    @service.distort(message)
+  def distort_reply(message, chat)
+    @service.distort_reply(message)
   end
 
-  def deepfry(message, chat)
-    @service.deepfry(message)
+  def deepfry_reply(message, chat)
+    @service.deepfry_reply(message)
+  end
+
+  def random_deepfry(message, chat)
+    @service.random_deepfry(message)
   end
 end
