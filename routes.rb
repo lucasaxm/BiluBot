@@ -51,20 +51,24 @@ module Routes
         action: :delete_message
     },
     %r{^\/distort$}i => {
-        controller: DistortController,
+        controller: ImageController,
         action: :distort
     },
     %r{^\/distort@[^@]*$}i => {
-        controller: DistortController,
+        controller: ImageController,
         action: :distort
     },
     %r{^\/d$}i => {
-        controller: DistortController,
+        controller: ImageController,
         action: :distort
     },
     %r{^scale$}i => {
-        controller: DistortController,
+        controller: ImageController,
         action: :distort
+    },
+    %r{^fry}i => {
+      controller: ImageController,
+      action: :deepfry
     }
 
   }.freeze
