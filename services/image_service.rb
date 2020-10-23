@@ -93,12 +93,9 @@ class ImageService
   def distort_image(file_path)
     img = ImageList.new(file_path)
     height, width = get_image_resolution(file_path)
-    logger.info 'applying liquid rescale'
-    img = img.liquid_rescale(width * 0.35, height * 0.35, 3, 5)
-    img.resize!(width, height)
-    logger.info "saving scaled photo to #{file_path}"
-    img.write(file_path)
-    img.destroy!
+    logger.info "applying liquid rescale and saving to #{file_path}"
+    img.liquid_rescale(width * 0.35, height * 0.35, 3, 5).resize(width, height).write(file_path)
+        .destroy!
   end
 
   def send_local_image(file_path, m)
@@ -127,16 +124,15 @@ class ImageService
   def deep_fry_image(file_path)
     img = ImageList.new(file_path)
     height, width = get_image_resolution(file_path)
-    logger.info 'applying deep fry'
-    img = img.liquid_rescale(width * 0.5, height * 0.5, 3, 5)
-    img.resize!(width, height)
-    img = img.modulate(0.5, 2, 2)
-    img = img.emboss(0.5)
-    img = img.implode(-0.4)
-    img = img.add_noise(Magick::GaussianNoise)
-    logger.info "saving deep fried photo to #{file_path}"
-    img.write(file_path)
-    img.destroy!
+    logger.info "applying deep fry and saving to #{file_path}"
+    img.liquid_rescale(width * 0.5, height * 0.5, 3, 5)
+    .resize(width, height)
+    .modulate(0.5, 2, 2)
+    .emboss(0.5)
+    .implode(-0.4)
+    .add_noise(Magick::GaussianNoise)
+    .write(file_path)
+    .destroy!
   end
 
   def get_image_resolution(file_path)
