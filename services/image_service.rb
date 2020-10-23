@@ -102,12 +102,25 @@ class ImageService
   end
 
   def send_local_image(file_path, m)
-    upload = Faraday::UploadIO.new(file_path, 'image/jpeg')
-    @bilu.bot.api.send_photo(
-        chat_id: m.chat.id,
-        photo: upload,
-        reply_to_message_id: m.message_id
-    )
+    file_ext = File.extname(file_path)
+    if file_ext == '.jpeg' || file_ext == '.jpg'
+      upload = Faraday::UploadIO.new(file_path, 'image/jpeg')
+      @bilu.bot.api.send_photo(
+          chat_id: m.chat.id,
+          photo: upload,
+          reply_to_message_id: m.message_id
+      )
+    elsif file_ext == '.webp'
+      upload = Faraday::UploadIO.new(file_path, 'image/webp')
+      @bilu.bot.api.send_sticker(
+          chat_id: m.chat.id,
+          sticker: upload,
+          reply_to_message_id: m.message_id
+      )
+    else
+      log.error "file extension #{file_ext} is not valid"
+      return
+    end
     upload.close
   end
 
