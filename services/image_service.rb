@@ -56,7 +56,7 @@ class ImageService
 
   def random_deepfry(message)
     # percentage integer
-    probability = 1
+    probability = 3
     return unless is_image? message
     roll = rand 100
     deepfry message if roll < probability
