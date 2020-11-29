@@ -166,6 +166,7 @@ class RedditService
       send_mp4(message, post, new_url)
     elsif post.is_reddit_media_domain && post.is_video
 
+      filepath = "#{post.id}.mp4"
       options = {
         'write-annotations': true,
         'add-metadata': true,
@@ -180,12 +181,12 @@ class RedditService
         continue: true,
         'external-downloader': 'aria2c',
         'external-downloader-args': '-c -j 3 -x 3 -s 3 -k 1M',
-        output: "#{post.id}.mp4"
+        output: filepath
       }
 
       YoutubeDL.download post.url, options
-      send_local_mp4(message, post, mp4_url)
-      FileUtils.rm("#{post.id}.mp4")
+      send_local_mp4(message, post, filepath)
+      FileUtils.rm(filepath)
     else
       send_photo(message, post)
     end
