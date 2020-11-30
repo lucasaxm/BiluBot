@@ -1,6 +1,7 @@
 require 'open-uri'
 require 'telegram/bot'
 require 'nokogiri'
+require 'youtube-dl'
 require_relative '../logger/logging'
 require_relative '../config/reddit_config'
 require_relative '../models/reddit_post'
@@ -164,24 +165,57 @@ class RedditService
       new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
       send_mp4(message, post, new_url)
     elsif post.is_reddit_media_domain && post.is_video
-      endpoint = 'https://reddit.tube/parse'
-      res = open(endpoint + '?url=' + reddit_post_full_permalink(post)).read
-      logger.info("Reply from #{endpoint}: #{res}.")
-      res_hash = JSON.parse(res)
-      source = open(res_hash['share_url'])
-      parsed_data = Nokogiri::HTML.parse(source)
-      mp4_url = parsed_data.css('video').first.css('source').first[:src]
-      send_mp4(message, post, mp4_url)
 
-      # if res.body.include? 'ERROR'
-      #   answer = "Couldn't get reddit video."
-      #   @bilu.reply_with_text(answer, message)
-      #   return
-      # else
-      # end
+      filepath = "#{post.id}.mp4"
+      options = {
+        'write-annotations': true,
+        'add-metadata': true,
+        'write-thumbnail': true,
+        'merge-output-format': 'mp4',
+        'all-subs': true,
+        'embed-subs': true,
+        'ignore-errors': true,
+        'embed-thumbnail': true,
+        'restrict-filenames': true,
+        'geo-bypass': true,
+        continue: true,
+        'external-downloader': 'aria2c',
+        'external-downloader-args': '-c -j 3 -x 3 -s 3 -k 1M',
+        output: filepath
+      }
+
+      YoutubeDL.download post.url, options
+      send_local_mp4(message, post, filepath)
+      FileUtils.rm(filepath)
     else
       send_photo(message, post)
     end
+  end
+
+  def send_local_mp4(message, post, file_path)
+    logger.debug("START - Sending #{file_path} as video through telegram API.")
+    @bilu.bot.api.send_chat_action(
+        chat_id: get_telegram_chat_id(message),
+        action: 'upload_video'
+    )
+    file_ext = File.extname(file_path)
+    if file_ext == '.mp4'
+      upload = Faraday::UploadIO.new(file_path, 'video/mp4')
+      @bilu.bot.api.send_video(
+          chat_id: get_telegram_chat_id(message),
+          video: upload,
+          caption: reddit_post_caption(post),
+          reply_to_message_id: get_telegram_message_id(message),
+          reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+              inline_keyboard: reddit_post_buttons(post)
+          )
+      )
+    else
+      log.error "file extension #{file_ext} is not valid"
+      return
+    end
+    upload.close
+    logger.debug("END - Sending #{file_path} as video through telegram API.")
   end
 
   def create_inline_query_result_media(post)
