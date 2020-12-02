@@ -168,7 +168,6 @@ class RedditService
 
       filepath = "#{post.id}.mp4"
       options = {
-        'write-annotations': true,
         'add-metadata': true,
         'write-thumbnail': true,
         'merge-output-format': 'mp4',
