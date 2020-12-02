@@ -12,6 +12,18 @@ module Routes
     def is_image? m
       !m.photo.empty? || !m.sticker.nil? || (!m.document.nil? && m.document.mime_type.start_with?('image/'))
     end
+
+    def is_link?(message)
+      !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| entity.type == 'url' }
+    end
+
+    def is_instagram_pic?(message)
+      regex_match(message, %r{^(https?:\/\/(www\.)?)?instagram\.com\S*\/p\/\w+\S*$})
+    end
+
+    def is_reddit_link?(message)
+      regex_match(message, %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$})
+    end
   end
 
 
@@ -53,7 +65,7 @@ module Routes
           action: :handle_chosen_inline_result
       },
       Proc.new do |message|
-        regex_match message, %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$}
+        is_reddit_link?(message)
       end => {
           controller: RedditController,
           action: :get_media_from_url
@@ -119,13 +131,16 @@ module Routes
           action: :random_deepfry
       },
       Proc.new do |message|
-        !message.entities.nil? \
-        && !message.entities.empty? \
-        && message.entities.any? { |entity| entity.type == 'url' } \
-        && !regex_match(message, %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$})
+        is_link?(message) && !is_reddit_link?(message) && !is_instagram_pic?(message)
       end => {
           controller: YoutubedlController,
           action: :send_video
+      },
+      Proc.new do |message|
+        is_link?(message) && is_instagram_pic?(message)
+      end => {
+          controller: ImageController,
+          action: :send_photo_from_instagram
       }
 
   }.freeze

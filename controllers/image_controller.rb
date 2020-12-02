@@ -20,4 +20,8 @@ class ImageController
   def random_deepfry(message, chat)
     @service.random_deepfry(message)
   end
+
+  def send_photo_from_instagram(message, chat)
+    @service.send_photo_from_instagram(message)
+  end
 end

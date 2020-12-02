@@ -67,6 +67,23 @@ class ImageService
     deepfry message.reply_to_message
   end
 
+  def send_photo_from_instagram(message)
+    doc = Nokogiri::HTML(open(message.text))
+    image_array = doc.xpath("//meta[@property='og:image']/@content")
+    if image_array.size != 1
+      logger.warn "Expected 1 image but got #{image_array.size}."
+      return
+    end
+    url = image_array.first.value
+    description_array = doc.xpath("//meta[@property='og:description']/@content")
+    if description_array.size != 1
+      logger.warn "Expected 1 image description but got #{description_array.size}."
+      return
+    end
+    description = description_array.first.value
+    send_photo(message, url, description)
+  end
+
   private
 
   def distort(m)
@@ -155,6 +172,26 @@ class ImageService
     width, height = FastImage.size(file_path)
     logger.info "image resolution #{width}x#{height}"
     [height, width]
+  end
+
+  def send_photo(message, url, caption = nil)
+    logger.debug("START - Sending #{url} as photo through telegram API.")
+    @bilu.bot.api.send_chat_action(
+        chat_id: message.chat.id,
+        action: 'upload_photo'
+    )
+    if caption.nil?
+      options = {chat_id: message.chat.id,
+                 photo: url.to_s,
+                 reply_to_message_id: message.message_id, }
+    else
+      options = {chat_id: message.chat.id,
+                 photo: url.to_s,
+                 caption: caption,
+                 reply_to_message_id: message.message_id, }
+    end
+    @bilu.bot.api.send_photo(options)
+    logger.debug("END - Sending #{url} as photo through telegram API.")
   end
 
 end
