@@ -56,14 +56,6 @@ class ImageService
     distort message.reply_to_message
   end
 
-  def random_deepfry(message)
-    # percentage integer
-    probability = 3
-    return unless is_image? message
-    roll = rand 100
-    deepfry message if roll < probability
-  end
-
   def deepfry_reply(message)
     return unless message.reply_to_message
     deepfry message.reply_to_message
@@ -86,6 +78,25 @@ class ImageService
     send_photo(message, url, description)
   end
 
+  def deepfry(m)
+    file_path = download_image m
+
+    @bilu.bot.api.send_chat_action(
+        chat_id: m.chat.id,
+        action: 'upload_photo'
+    )
+
+    deep_fry_image(file_path)
+
+    logger.info "sending deep fried photo"
+    send_local_image(file_path, m)
+    logger.info('deep fried photo sent.')
+
+
+    FileUtils.rm(file_path)
+    logger.info "file #{file_path} deleted"
+  end
+
   private
 
   def distort(m)
@@ -101,25 +112,6 @@ class ImageService
     logger.info "sending scaled photo"
     send_local_image(file_path, m)
     logger.info('scaled photo sent.')
-
-    FileUtils.rm(file_path)
-    logger.info "file #{file_path} deleted"
-  end
-
-  def deepfry(m)
-    file_path = download_image m
-
-    @bilu.bot.api.send_chat_action(
-        chat_id: m.chat.id,
-        action: 'upload_photo'
-    )
-
-    deep_fry_image(file_path)
-
-    logger.info "sending deep fried photo"
-    send_local_image(file_path, m)
-    logger.info('deep fried photo sent.')
-
 
     FileUtils.rm(file_path)
     logger.info "file #{file_path} deleted"

@@ -125,10 +125,13 @@ module Routes
           action: :deepfry_reply
       },
       Proc.new do |message|
-        is_image? message
+        # percentage integer
+        probability = 2
+        false unless is_image? message
+        rand 100 < probability
       end => {
           controller: ImageController,
-          action: :random_deepfry
+          action: :deepfry
       },
       Proc.new do |message|
         is_link?(message) && !is_reddit_link?(message) && !is_instagram_pic?(message)
