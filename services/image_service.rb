@@ -1,8 +1,6 @@
 require_relative '../logger/logging'
 require 'rmagick'
 require 'fastimage'
-require 'open-uri'
-require 'nokogiri'
 
 class ImageService
   include Logging, Magick
