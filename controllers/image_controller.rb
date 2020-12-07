@@ -20,8 +20,4 @@ class ImageController
   def deepfry(message, chat)
     @service.deepfry(message)
   end
-
-  def send_photo_from_instagram(message, chat)
-    @service.send_photo_from_instagram(message)
-  end
 end

@@ -17,10 +17,6 @@ module Routes
       !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| entity.type == 'url' }
     end
 
-    def is_instagram_pic?(message)
-      regex_match(message, %r{^(https?:\/\/(www\.)?)?instagram\.com\S*\/p\/\w+\S*$})
-    end
-
     def is_reddit_link?(message)
       regex_match(message, %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$})
     end
@@ -138,12 +134,6 @@ module Routes
       end => {
           controller: YoutubedlController,
           action: :send_video
-      },
-      Proc.new do |message|
-        is_link?(message) && is_instagram_pic?(message)
-      end => {
-          controller: ImageController,
-          action: :send_photo_from_instagram
       }
 
   }.freeze
