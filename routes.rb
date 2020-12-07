@@ -128,7 +128,7 @@ module Routes
         # percentage integer
         probability = 2
         false unless is_image? message
-        rand 100 < probability
+        rand(100) < probability
       end => {
           controller: ImageController,
           action: :deepfry
