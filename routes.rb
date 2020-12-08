@@ -130,7 +130,7 @@ module Routes
           action: :deepfry
       },
       Proc.new do |message|
-        is_link?(message) && !is_reddit_link?(message) && !is_instagram_pic?(message)
+        is_link?(message) && !is_reddit_link?(message)
       end => {
           controller: YoutubedlController,
           action: :send_video
