@@ -1,5 +1,6 @@
 require 'telegram/bot'
 require 'youtube-dl'
+require_relative '../config/gallery_dl_config'
 require_relative '../lib/gallery_dl'
 require_relative '../logger/logging'
 
@@ -7,6 +8,7 @@ class GalleryDLService
   include Logging
 
   def initialize(bilu)
+    GalleryDLConfig.save_config
     @bilu = bilu
   end
 
