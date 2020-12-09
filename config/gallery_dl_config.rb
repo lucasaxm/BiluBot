@@ -15,7 +15,10 @@ module GalleryDLConfig
       extractor: {
           twitter: {
               username: ENV['BILU_TWITTER_USERNAME'],
-              password: ENV['BILU_TWITTER_PASSWORD']
+              password: ENV['BILU_TWITTER_PASSWORD'],
+              cookies: {
+                  'auth_token': ENV['BILU_TWITTER_AUTH_TOKEN']
+              }
           },
           instagram: {
               username: ENV['BILU_INSTAGRAM_USERNAME'],
