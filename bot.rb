@@ -95,17 +95,21 @@ module Bilu
       begin
         logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
         channel_id = ENV['TELEGRAM_LOG_CHANNEL_ID']
+        @bot.api.send_message(
+            chat_id: channel_id,
+            text: text
+        )
         if !message.nil? && !message.chat.id.nil?
           @bot.api.send_message(
               chat_id: channel_id,
-              text: 'issue found with message:'
+              text: 'message:'
           )
           @bot.api.forward_message(
               chat_id: channel_id,
               from_chat_id: message.chat.id,
               message_id: message.message_id
           )
-          if !message.reply_to_message.nil?
+          unless message.reply_to_message.nil?
             @bot.api.send_message(
                 chat_id: channel_id,
                 text: 'that was a reply to:'
@@ -116,11 +120,6 @@ module Bilu
                 message_id: message.reply_to_message.message_id
             )
           end
-        else
-          @bot.api.send_message(
-              chat_id: channel_id,
-              text: text
-          )
         end
       rescue StandardError => e
         answer = "Error #{e.class.name}: #{e.message}."

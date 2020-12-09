@@ -5,7 +5,7 @@ require_relative 'bot'
 module Server
   include Logging
 
-  MAX_ATTEMPTS = 5
+  MAX_ATTEMPTS = 2
   error_count = 0
 
   bot ||= Bilu::Bot.new
