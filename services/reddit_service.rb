@@ -195,7 +195,7 @@ class RedditService
         )
     )
     upload.close
-    FileUtils.rm([file_path, new_file_path])
+    FileUtils.rm(%W[#{file_path} #{file_path}.json #{new_file_path}])
     logger.debug("END - Sending #{file_path} as video through telegram API.")
   end
 
