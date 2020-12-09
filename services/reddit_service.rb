@@ -1,7 +1,6 @@
 require 'open-uri'
 require 'telegram/bot'
 require 'nokogiri'
-require 'streamio-ffmpeg'
 require_relative '../lib/gallery_dl'
 require_relative '../logger/logging'
 require_relative '../config/reddit_config'
@@ -176,10 +175,8 @@ class RedditService
 
   def send_local_mp4(message, post, file_path)
     logger.debug("START - Sending #{file_path} as video through telegram API.")
-    movie = FFMPEG::Movie.new(file_path)
     new_file_path = "#{message.message_id}.mp4"
-    logger.info("Transcoding video to #{new_file_path}")
-    movie.transcode(new_file_path, %w(-c:v libx264 -crf 26 -vf scale=640:-1))
+    @bilu.transcode_video_to_mp4(file_path, new_file_path)
     @bilu.bot.api.send_chat_action(
         chat_id: get_telegram_chat_id(message),
         action: 'upload_video'

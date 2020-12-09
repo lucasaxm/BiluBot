@@ -10,6 +10,7 @@ require 'active_record'
 require 'pg'
 require "down"
 require "fileutils"
+require 'streamio-ffmpeg'
 
 module Bilu
   include Logging
@@ -172,6 +173,17 @@ module Bilu
       FileUtils.mv(path, save_path)
       logger.info("file moved to '#{save_path}'.")
       save_path
+    end
+
+    def transcode_video_to_mp4(orig, dest)
+      movie = FFMPEG::Movie.new(orig)
+      logger.info("Transcoding video to #{dest}")
+      movie.transcode(dest, %w(-c:v libx264 -crf 26 -vf scale=640:-1)){ |progress| print "#{progress}.." }
+      puts ''
+    end
+
+    def is_local_image?(path)
+      FFMPEG::Movie.new(path).frame_rate.nil?
     end
 
   end

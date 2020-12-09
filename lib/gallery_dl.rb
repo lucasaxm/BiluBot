@@ -1,6 +1,7 @@
 require 'terrapin'
 require 'json'
 require 'ostruct'
+require 'timeout'
 
 require_relative 'gallery-dl/version'
 require_relative 'gallery-dl/support'

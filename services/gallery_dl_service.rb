@@ -1,5 +1,4 @@
 require 'telegram/bot'
-require 'streamio-ffmpeg'
 require 'youtube-dl'
 require_relative '../lib/gallery_dl'
 require_relative '../logger/logging'
@@ -15,8 +14,7 @@ class GalleryDLService
     logger.info 'Retrying with YoutubeDL'
     filepath = "#{message.message_id}"
     options = {
-        format: 'bestvideo[height<=720][filesize<?20M]+bestaudio/best',
-        'merge-output-format': 'mp4',
+        format: 'best[filesize<?20M]/best',
         output: filepath
     }
     result = YoutubeDL.download message.text, options
@@ -25,13 +23,10 @@ class GalleryDLService
       return
     end
     result.information[:category] = result.information[:extractor]
-
-    movie = FFMPEG::Movie.new(filepath)
-    new_file_path = "#{message.message_id}.mp4"
-    logger.info("Transcoding video to #{new_file_path}")
-    movie.transcode(new_file_path, %w(-c:v libx264 -crf 26 -vf scale=640:-1))
-    send_local_video(new_file_path, build_caption(result.information), message)
-    FileUtils.rm([filepath, new_file_path])
+    new_filepath = "#{message.message_id}.mp4"
+    @bilu.transcode_video_to_mp4(filepath, new_filepath)
+    send_local_video(new_filepath, build_caption(result.information), message)
+    FileUtils.rm([filepath, new_filepath])
   rescue Terrapin::ExitStatusError => e
     logger.warn "Failed to send video. message: #{e.message.each_line.grep /^ERROR/}"
   end
@@ -58,6 +53,8 @@ class GalleryDLService
       "#{information[:fullname]}(@#{information[:username]}):\n#{information[:description]}"
     when 'tiktok'
       "#{information[:title]}:\n#{information[:description]}"
+    when 'youtube'
+      "#{information[:title]}:\n#{information[:description]}"
     else
       information[:category]
     end
@@ -66,18 +63,16 @@ class GalleryDLService
   def send_gallerydl_media(message, result)
     logger.info "#{result.information.size} medias found from #{message.text}"
     result.information.each do |information|
-      path = information[:local_path]
-      movie = FFMPEG::Movie.new(path)
-      if movie.frame_rate.nil?
-        send_local_photo(path, build_caption(information), message)
+      filepath = information[:local_path]
+      if @bilu.is_local_image?(filepath)
+        send_local_photo(filepath, build_caption(information), message)
       else
-        file_path = "#{message.message_id}.mp4"
-        logger.info("Transcoding video to #{file_path}")
-        movie.transcode(file_path, %w(-c:v libx264 -crf 26 -vf scale=640:-1))
-        send_local_video(file_path, build_caption(information), message)
-        FileUtils.rm(file_path)
+        new_filepath = "#{message.message_id}.mp4"
+        @bilu.transcode_video_to_mp4(filepath, new_filepath)
+        send_local_video(new_filepath, build_caption(information), message)
+        FileUtils.rm(new_filepath)
       end
-      FileUtils.rm(%W[#{path} #{path}.json])
+      FileUtils.rm(%W[#{filepath} #{filepath}.json])
     end
   end
 

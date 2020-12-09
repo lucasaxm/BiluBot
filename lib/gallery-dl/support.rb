@@ -26,7 +26,7 @@ module GalleryDL
     # @return [terrapin::CommandLine] initialized terrapin instance
     def terrapin_line(command, executable_path = nil)
       executable_path = executable_path_for('gallery-dl') if executable_path.nil?
-      Terrapin::CommandLine.new(executable_path, command, runner_options: {timeout: 30})
+      Terrapin::CommandLine.new(executable_path, command)
     end
 
     # Helper to add quotes to beginning and end of a URL or whatever you want....
