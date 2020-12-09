@@ -169,7 +169,6 @@ class RedditService
       result = GalleryDL.download "reddit.com#{post.permalink}"
       filepath = result.information.first[:local_path]
       send_local_mp4(message, post, filepath)
-      FileUtils.rm(filepath)
     else
       send_photo(message, post)
     end
