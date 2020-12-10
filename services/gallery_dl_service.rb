@@ -1,5 +1,6 @@
 require 'telegram/bot'
 require 'youtube-dl'
+require 'timeout'
 require_relative '../config/gallery_dl_config'
 require_relative '../lib/gallery_dl'
 require_relative '../logger/logging'
@@ -19,32 +20,40 @@ class GalleryDLService
         format: 'best[filesize<?20M]/best',
         output: filepath
     }
-    result = YoutubeDL.download message.text, options
+    result = Timeout::timeout(20, nil, "YoutubeDL.download timeout. url=[#{message.text}] options=[#{options}]") do
+      YoutubeDL.download message.text, options
+    end
     if result.nil?
       logger.error 'Failed to download video using youtube-dl'
       return
     end
     result.information[:category] = result.information[:extractor]
-    new_filepath = "#{message.message_id}.mp4"
-    @bilu.transcode_video_to_mp4(filepath, new_filepath)
-    send_local_video(new_filepath, build_caption(result.information), message)
-    FileUtils.rm([filepath, new_filepath])
+    new_filepath = "#{filepath}.#{result.information[:ext]}"
+    FileUtils.mv(filepath, new_filepath)
+    result.information[:local_path] = new_filepath
+    send_gallerydl_media(message, GalleryDL::Media.new(message.text, {}, [result.information]))
   rescue Terrapin::ExitStatusError => e
     logger.warn "Failed to send video. message: #{e.message.each_line.grep /^ERROR/}"
+  rescue Timeout::Error => e
+    @bilu.log_to_channel("Exception Class: [#{e.class.name}]\nException Message: [#{e.message}'].", message)
   end
 
   def send_media(message)
     logger.info "Trying to send #{message.text} as media"
     options = {}
-    result = GalleryDL.download message.text, options
+    result = Timeout::timeout(20, nil, "GalleryDL.download timeout. url=[#{message.text}] options=[#{options}]") do
+      GalleryDL.download message.text, options
+    end
     if result.nil? || result.information.nil? || result.information.any? { |r| r[:local_path].nil? }
       logger.error 'Failed to download media using gallery-dl'
       return
     end
     send_gallerydl_media(message, result)
   rescue Terrapin::ExitStatusError => e
-    logger.warn "Failed to send video. message: #{e.message.each_line.grep /\[error\]/}"
+    logger.warn "Failed to send media. message: #{e.message.each_line.grep /\[error\]/}"
     fallback_youtubedl(message)
+  rescue Timeout::Error => e
+    @bot.log_to_channel("Exception Class: [#{e.class.name}]\nException Message: [#{e.message}'].", message)
   end
 
   def build_caption(information)
@@ -59,7 +68,7 @@ class GalleryDLService
       "#{information[:title]}:\n#{information[:description]}"
     else
       information[:category]
-    end
+    end[0..1023]
   end
 
   def send_gallerydl_media(message, result)
@@ -69,12 +78,37 @@ class GalleryDLService
       if @bilu.is_local_image?(filepath)
         send_local_photo(filepath, build_caption(information), message)
       else
-        new_filepath = "#{message.message_id}.mp4"
-        @bilu.transcode_video_to_mp4(filepath, new_filepath)
-        send_local_video(new_filepath, build_caption(information), message)
-        FileUtils.rm(new_filepath)
+        if (File.extname(filepath) == '.mp4') && (@bilu.file_size_mb(filepath) < 10)
+          send_local_video(filepath, build_caption(information), message)
+        else
+          new_filepath = "#{SecureRandom.hex}.mp4"
+          begin
+            Timeout::timeout(20, nil, "Transcoding to mp4 timeout.") do
+              @bilu.transcode_video_to_mp4(filepath, new_filepath)
+            end
+          rescue Timeout::Error => e
+            error_msg = "Exception Class: [#{e.class.name}]\nException Message: [#{e.message}']."
+            logger.warn(error_msg)
+            if File.extname(filepath) == '.mp4' && @bilu.file_size_mb(filepath) < 20
+              send_local_video(filepath, build_caption(information), message)
+            else
+              @bilu.log_to_channel(error_msg, message)
+              FileUtils.rm(new_filepath) if File.exists?(new_filepath)
+              FileUtils.rm(filepath) if File.exists?(filepath)
+              FileUtils.rm("#{filepath}.json") if File.exists?("#{filepath}.json")
+              return
+            end
+          end
+          if (File.extname(filepath) == '.mp4') && (@bilu.file_size_mb(filepath) <= @bilu.file_size_mb(new_filepath))
+            send_local_video(filepath, build_caption(information), message)
+          else
+            send_local_video(new_filepath, build_caption(information), message)
+          end
+          FileUtils.rm(new_filepath) if File.exists?(new_filepath)
+        end
       end
-      FileUtils.rm(%W[#{filepath} #{filepath}.json])
+      FileUtils.rm(filepath) if File.exists?(filepath)
+      FileUtils.rm("#{filepath}.json") if File.exists?("#{filepath}.json")
     end
   end
 

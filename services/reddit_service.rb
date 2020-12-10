@@ -173,15 +173,15 @@ class RedditService
     end
   end
 
-  def send_local_mp4(message, post, file_path)
-    logger.debug("START - Sending #{file_path} as video through telegram API.")
-    new_file_path = "#{message.message_id}.mp4"
-    @bilu.transcode_video_to_mp4(file_path, new_file_path)
+  def send_local_mp4(message, post, filepath)
+    logger.debug("START - Sending #{filepath} as video through telegram API.")
+    new_filepath = "#{SecureRandom.hex}.mp4"
+    @bilu.transcode_video_to_mp4(filepath, new_filepath)
     @bilu.bot.api.send_chat_action(
         chat_id: get_telegram_chat_id(message),
         action: 'upload_video'
     )
-    upload = Faraday::UploadIO.new(new_file_path, 'video/mp4')
+    upload = Faraday::UploadIO.new(new_filepath, 'video/mp4')
     @bilu.bot.api.send_video(
         chat_id: get_telegram_chat_id(message),
         video: upload,
@@ -192,8 +192,10 @@ class RedditService
         )
     )
     upload.close
-    FileUtils.rm(%W[#{file_path} #{file_path}.json #{new_file_path}])
-    logger.debug("END - Sending #{file_path} as video through telegram API.")
+    FileUtils.rm(filepath) if File.exists?(filepath)
+    FileUtils.rm("#{filepath}.json") if File.exists?("#{filepath}.json")
+    FileUtils.rm(new_filepath) if File.exists?(new_filepath)
+    logger.debug("END - Sending #{filepath} as video through telegram API.")
   end
 
   def create_inline_query_result_media(post)

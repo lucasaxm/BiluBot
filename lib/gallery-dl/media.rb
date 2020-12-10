@@ -26,10 +26,11 @@ module GalleryDL
     #
     # @param url [String] URL to initialize with
     # @param options [Hash] Options to populate the everything with
-    def initialize(url, options = {})
+    def initialize(url, options = {}, information = nil)
       @url = url
       @options = GalleryDL::Options.new(options.merge(default_options))
       @options.banned_keys = banned_keys
+      @information = information unless information.nil?
     end
 
     # Download the media.

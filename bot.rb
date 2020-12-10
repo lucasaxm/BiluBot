@@ -178,11 +178,15 @@ module Bilu
     def transcode_video_to_mp4(orig, dest)
       movie = FFMPEG::Movie.new(orig)
       logger.info("Transcoding video to #{dest}")
-      movie.transcode(dest, %w(-c:v libx264 -crf 26 -vf scale=640:-1)){ |progress| progressing = (progress * 100).round(2); puts "#{progressing}%"; }
+      movie.transcode(dest, %w(-c:v libx264 -crf 33 -preset ultrafast -c:a aac -b:a 128k -vf scale=-2:480,format=yuv420p)){ |progress| progressing = (progress * 100).round(2); puts "#{progressing}%"; }
     end
 
     def is_local_image?(path)
       FFMPEG::Movie.new(path).frame_rate.nil?
+    end
+
+    def file_size_mb(path)
+      (File.size(path).to_f / 2**20).round(2)
     end
 
   end
