@@ -5,20 +5,31 @@ module Routes
     attr_reader :message_map
 
     def regex_match(message, regex)
-      return false if message.text.nil?
-      regex.match? message.text.to_s
+      text = if is_callback_query? message
+               message.data
+             else
+               message.text
+             end
+      return false if text.nil?
+      regex.match? text.to_s
     end
 
-    def is_image? m
-      !m.photo.empty? || !m.sticker.nil? || (!m.document.nil? && m.document.mime_type.start_with?('image/'))
+    def is_image? message
+      !is_callback_query?(message) && (!message.photo.empty? || !message.sticker.nil? || (!message.document.nil? && message.document.mime_type.start_with?('image/')))
     end
 
     def is_link?(message)
-      !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| entity.type == 'url' }
+      !is_callback_query?(message) && !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| entity.type == 'url' }
     end
 
     def is_reddit_link?(message)
       regex_match(message, %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$})
+    end
+
+    private
+
+    def is_callback_query?(message)
+      message.class == Telegram::Bot::Types::CallbackQuery
     end
   end
 

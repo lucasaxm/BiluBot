@@ -31,21 +31,14 @@ class Logger4Telegram < Logger
       @from = message.from.username.nil? ? message.from.id : message.from.username
     end
     case message
+    when Telegram::Bot::Types::Message
+      @chat_type = "#{"#{message.chat.title} " unless message.chat.type == 'private'}(#{message.chat.id})"
+    when Telegram::Bot::Types::CallbackQuery
+      @chat_type = "#{"#{message.message.chat.title} " unless message.message.chat.type == 'private'}(#{message.message.chat.id})"
     when Telegram::Bot::Types::InlineQuery
       @chat_type = "Inline Query (#{message.from.id})"
-
-    when Telegram::Bot::Types::Message
-      @chat_type = message.chat.type == 'private' ? 'private' : message.chat.title
-      @chat_type << " (#{message.chat.id})"
-
     else
       puts 'unknown message type'
-
-#   when Telegram::Bot::Types::CallbackQuery
-#     # callback query not needed
-#
-#   when Telegram::Bot::Types::ChosenInlineResult
-#     # no inline query
     end
   end
 end
