@@ -91,28 +91,28 @@ class ImageService
     logger.info('deep fried photo sent.')
 
 
-    FileUtils.rm(file_path)
+    FileUtils.rm(file_path) if File.exists? file_path
     logger.info "file #{file_path} deleted"
   end
 
   private
 
   def distort(m)
-    file_path = download_image m
+    filepath = download_image m
 
     @bilu.bot.api.send_chat_action(
         chat_id: m.chat.id,
         action: 'upload_photo'
     )
 
-    distort_image(file_path)
+    distort_image(filepath)
 
     logger.info "sending scaled photo"
-    send_local_image(file_path, m)
+    send_local_image(filepath, m)
     logger.info('scaled photo sent.')
 
-    FileUtils.rm(file_path)
-    logger.info "file #{file_path} deleted"
+    FileUtils.rm(filepath) if File.exists? filepath
+    logger.info "file #{filepath} deleted"
   end
 
   def distort_image(file_path)

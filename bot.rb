@@ -10,6 +10,7 @@ require 'active_record'
 require 'pg'
 require "down"
 require "fileutils"
+require 'streamio-ffmpeg'
 
 module Bilu
   include Logging
@@ -95,17 +96,21 @@ module Bilu
       begin
         logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
         channel_id = ENV['TELEGRAM_LOG_CHANNEL_ID']
+        @bot.api.send_message(
+            chat_id: channel_id,
+            text: text
+        )
         if !message.nil? && !message.chat.id.nil?
           @bot.api.send_message(
               chat_id: channel_id,
-              text: 'issue found with message:'
+              text: 'message:'
           )
           @bot.api.forward_message(
               chat_id: channel_id,
               from_chat_id: message.chat.id,
               message_id: message.message_id
           )
-          if !message.reply_to_message.nil?
+          unless message.reply_to_message.nil?
             @bot.api.send_message(
                 chat_id: channel_id,
                 text: 'that was a reply to:'
@@ -116,11 +121,6 @@ module Bilu
                 message_id: message.reply_to_message.message_id
             )
           end
-        else
-          @bot.api.send_message(
-              chat_id: channel_id,
-              text: text
-          )
         end
       rescue StandardError => e
         answer = "Error #{e.class.name}: #{e.message}."
@@ -173,6 +173,20 @@ module Bilu
       FileUtils.mv(path, save_path)
       logger.info("file moved to '#{save_path}'.")
       save_path
+    end
+
+    def transcode_video_to_mp4(orig, dest)
+      movie = FFMPEG::Movie.new(orig)
+      logger.info("Transcoding video to #{dest}")
+      movie.transcode(dest, %w(-c:v libx264 -crf 33 -preset ultrafast -c:a aac -b:a 128k -vf scale=-2:480,format=yuv420p)){ |progress| progressing = (progress * 100).round(2); puts "#{progressing}%"; }
+    end
+
+    def is_local_image?(path)
+      FFMPEG::Movie.new(path).frame_rate.nil?
+    end
+
+    def file_size_mb(path)
+      (File.size(path).to_f / 2**20).round(2)
     end
 
   end

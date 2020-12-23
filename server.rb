@@ -5,7 +5,7 @@ require_relative 'bot'
 module Server
   include Logging
 
-  MAX_ATTEMPTS = 5
+  MAX_ATTEMPTS = 2
   error_count = 0
 
   bot ||= Bilu::Bot.new
@@ -26,7 +26,7 @@ module Server
           logger.info("Retrying (Attempt #{error_count + 1}/#{MAX_ATTEMPTS})")
           retry
         elsif !bot.nil?
-          answer = "Error #{e.class.name}: #{e.message}."
+          answer = "Exception Class: [#{e.class.name}]\nException Message: [#{e.message}']."
           logger.error("Message=[#{answer}]")
           bot.log_to_channel(answer, message)
         end
