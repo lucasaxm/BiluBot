@@ -16,4 +16,11 @@ class MiscController
     @service.spam(message)
   end
 
+  def keyboard(message, chat)
+    @service.keyboard(message)
+  end
+
+  def close_keyboard(message, chat)
+    @service.close_keyboard(message)
+  end
 end
