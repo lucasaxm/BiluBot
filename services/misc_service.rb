@@ -1,4 +1,5 @@
 require_relative '../logger/logging'
+require 'telegram/bot'
 
 class MiscService
   include Logging
@@ -52,6 +53,45 @@ class MiscService
         spam_message(message, repetitions, text)
       end
     end
+  end
+
+  def keyboard(message)
+    text = message.text.split(' ')[1..-1].join(' ').strip
+
+    if (text[0] == '(') && (text[-1] == ')')
+      keys = text[1..-2].split(')(').map(&:strip).map { |r| r.split(',').map(&:strip) }
+    else
+      keys = [[text]]
+    end
+
+    text_markdown = "Keyboard created\n```\n#{keys.map do |k|
+      "#{k.map{ |kk| "[#{kk}]"}.join}"
+    end.join("\n")}\n```"
+
+    logger.info "showing keyboard #{keys.to_s}."
+    @bilu.bot.api.send_message(
+      chat_id: message.chat.id,
+      reply_to_message_id: message.message_id,
+      parse_mode: 'MarkdownV2',
+      text: text_markdown,
+      reply_markup: Telegram::Bot::Types::ReplyKeyboardMarkup.new(
+        keyboard: keys,
+        resize_keyboard: true,
+        selective: true
+      ))
+  end
+
+  def close_keyboard(message)
+    logger.info "Closing keyboard"
+    @bilu.bot.api.send_message(
+      chat_id: message.chat.id,
+      reply_to_message_id: message.message_id,
+      text: 'Keyboard closed',
+      reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(
+        remove_keyboard: true,
+        selective: true
+    ))
+
   end
 
   private

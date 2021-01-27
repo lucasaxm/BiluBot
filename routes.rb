@@ -145,6 +145,18 @@ module Routes
       end => {
           controller: GalleryDLController,
           action: :send_media
+      },
+      lambda do |message|
+        regex_match message, %r{^\/keyboard .*$}i
+      end => {
+        controller: MiscController,
+        action: :keyboard
+      },
+      lambda do |message|
+        regex_match message, %r{^\/close$}i
+      end => {
+        controller: MiscController,
+        action: :close_keyboard
       }
 
   }.freeze
