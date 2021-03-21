@@ -78,33 +78,13 @@ class GalleryDLService
       if @bilu.is_local_image?(filepath)
         send_local_photo(filepath, build_caption(information), message)
       else
-        if (File.extname(filepath) == '.mp4') && (@bilu.file_size_mb(filepath) < 10)
+        file_size_mb = @bilu.file_size_mb(filepath)
+        if (File.extname(filepath) == '.mp4') && (file_size_mb < 20)
           send_local_video(filepath, build_caption(information), message)
         else
-          new_filepath = "#{SecureRandom.hex}.mp4"
-          begin
-            Timeout::timeout(20, nil, "Transcoding to mp4 timeout.") do
-              @bilu.transcode_video_to_mp4(filepath, new_filepath)
-            end
-          rescue Timeout::Error => e
-            error_msg = "Exception Class: [#{e.class.name}]\nException Message: [#{e.message}']."
-            logger.warn(error_msg)
-            if File.extname(filepath) == '.mp4' && @bilu.file_size_mb(filepath) < 20
-              send_local_video(filepath, build_caption(information), message)
-            else
-              @bilu.log_to_channel(error_msg, message)
-              FileUtils.rm(new_filepath) if File.exists?(new_filepath)
-              FileUtils.rm(filepath) if File.exists?(filepath)
-              FileUtils.rm("#{filepath}.json") if File.exists?("#{filepath}.json")
-              return
-            end
-          end
-          if (File.extname(filepath) == '.mp4') && (@bilu.file_size_mb(filepath) <= @bilu.file_size_mb(new_filepath))
-            send_local_video(filepath, build_caption(information), message)
-          else
-            send_local_video(new_filepath, build_caption(information), message)
-          end
-          FileUtils.rm(new_filepath) if File.exists?(new_filepath)
+          error_msg = "Error sending file #{filepath}:#{file_size_mb}MB"
+          logger.warn(error_msg)
+          @bilu.log_to_channel(error_msg, message)
         end
       end
       FileUtils.rm(filepath) if File.exists?(filepath)

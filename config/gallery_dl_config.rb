@@ -3,30 +3,33 @@ module GalleryDLConfig
   class << self
     def save_config
       # Windows
-      File.write(File.join(Dir.home,'gallery-dl.conf'), @config.to_json)
+      File.write(File.join(Dir.home, 'gallery-dl.conf'), @config.to_json)
       # Linux
-      File.write(File.join(Dir.home,'.gallery-dl.conf'), @config.to_json)
+      File.write(File.join(Dir.home, '.gallery-dl.conf'), @config.to_json)
 
     end
   end
 
   # holds the api key used in ForecastIO configuration
   @config = {
-      extractor: {
-          twitter: {
-              username: ENV['BILU_TWITTER_USERNAME'],
-              password: ENV['BILU_TWITTER_PASSWORD'],
-              cookies: {
-                  'auth_token': ENV['BILU_TWITTER_AUTH_TOKEN']
-              }
-          },
-          instagram: {
-              username: ENV['BILU_INSTAGRAM_USERNAME'],
-              password: ENV['BILU_INSTAGRAM_PASSWORD']
-          }
+    extractor: {
+      twitter: {
+        username: ENV['BILU_TWITTER_USERNAME'],
+        password: ENV['BILU_TWITTER_PASSWORD'],
+        cookies: {
+          'auth_token': ENV['BILU_TWITTER_AUTH_TOKEN']
+        }
       },
-      downloader: {
-          'filesize-max': '20M'
+      instagram: {
+        username: ENV['BILU_INSTAGRAM_USERNAME'],
+        password: ENV['BILU_INSTAGRAM_PASSWORD'],
+        cookies: {
+          session_id: ENV['BILU_INSTAGRAM_SESSION_ID']
+        }
       }
+    },
+    downloader: {
+      'filesize-max': '20M'
+    }
   }
 end
