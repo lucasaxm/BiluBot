@@ -1,0 +1,12 @@
+setup:
+  addons:
+    - plan: heroku-postgresql
+build:
+  docker:
+    bot: Dockerfile
+release:
+  command:
+    - ./deployment-tasks.sh
+  image: worker
+run:
+  bot: ruby server.rb

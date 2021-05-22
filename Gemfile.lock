@@ -1,0 +1,128 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    activemodel (5.2.3)
+      activesupport (= 5.2.3)
+    activerecord (5.2.3)
+      activemodel (= 5.2.3)
+      activesupport (= 5.2.3)
+      arel (>= 9.0)
+    activesupport (5.2.3)
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      i18n (>= 0.7, < 2)
+      minitest (~> 5.1)
+      tzinfo (~> 1.1)
+    addressable (2.6.0)
+      public_suffix (>= 2.0.2, < 4.0)
+    arel (9.0.0)
+    awesome_print (1.8.0)
+    axiom-types (0.1.1)
+      descendants_tracker (~> 0.0.4)
+      ice_nine (~> 0.11.0)
+      thread_safe (~> 0.3, >= 0.3.1)
+    byebug (11.1.3)
+    climate_control (0.2.0)
+    cocaine (0.6.0)
+      terrapin (= 0.6.0)
+    coercible (1.0.0)
+      descendants_tracker (~> 0.0.1)
+    concurrent-ruby (1.1.5)
+    descendants_tracker (0.0.4)
+      thread_safe (~> 0.3, >= 0.3.1)
+    domain_name (0.5.20180417)
+      unf (>= 0.0.5, < 1.0.0)
+    dotenv (2.7.2)
+    down (5.2.0)
+      addressable (~> 2.5)
+    equalizer (0.0.11)
+    faraday (0.15.4)
+      multipart-post (>= 1.2, < 3)
+    faraday_middleware (0.13.1)
+      faraday (>= 0.7.4, < 1.0)
+    fastimage (2.2.0)
+    fileutils (1.4.1)
+    forecast_io (2.0.2)
+      faraday
+      hashie
+      multi_json
+    hashie (3.6.0)
+    http (2.2.2)
+      addressable (~> 2.3)
+      http-cookie (~> 1.0)
+      http-form_data (~> 1.0.1)
+      http_parser.rb (~> 0.6.0)
+    http-cookie (1.0.3)
+      domain_name (~> 0.5)
+    http-form_data (1.0.3)
+    http_parser.rb (0.6.0)
+    i18n (1.6.0)
+      concurrent-ruby (~> 1.0)
+    ice_nine (0.11.2)
+    inflecto (0.0.2)
+    mini_portile2 (2.4.0)
+    minitest (5.11.3)
+    multi_json (1.13.1)
+    multipart-post (2.1.1)
+    nokogiri (1.10.10)
+      mini_portile2 (~> 2.4.0)
+    nokogiri (1.10.10-x64-mingw32)
+      mini_portile2 (~> 2.4.0)
+    pg (1.1.4)
+    pg (1.1.4-x64-mingw32)
+    public_suffix (3.1.0)
+    redd (0.8.8)
+      http (~> 2.2)
+    rmagick (4.1.2)
+    streamio-ffmpeg (3.0.2)
+      multi_json (~> 1.8)
+    telegram-bot-ruby (0.14.0)
+      faraday
+      inflecto
+      virtus
+    terrapin (0.6.0)
+      climate_control (>= 0.0.3, < 1.0)
+    thread_safe (0.3.6)
+    timezone (1.3.4)
+    tzinfo (1.2.5)
+      thread_safe (~> 0.1)
+    unf (0.1.4)
+      unf_ext
+    unf_ext (0.0.7.6)
+    virtus (1.0.5)
+      axiom-types (~> 0.1)
+      coercible (~> 1.0)
+      descendants_tracker (~> 0.0, >= 0.0.3)
+      equalizer (~> 0.0, >= 0.0.9)
+    youtube-dl.rb (0.3.1.2016.09.11.1)
+      cocaine (>= 0.5.4)
+
+PLATFORMS
+  ruby
+  x64-mingw32
+
+DEPENDENCIES
+  activerecord (~> 5.0, >= 5.0.0.1)
+  activesupport (~> 5.2.3)
+  awesome_print
+  byebug
+  dotenv (~> 2.5)
+  down
+  faraday
+  faraday_middleware
+  fastimage
+  fileutils
+  forecast_io
+  nokogiri
+  pg (>= 0.19.0.beta)
+  redd (~> 0.8.8)
+  rmagick
+  streamio-ffmpeg
+  telegram-bot-ruby (~> 0.14.0)
+  timezone (~> 1.0)
+  youtube-dl.rb
+
+RUBY VERSION
+   ruby 2.4.10p364
+
+BUNDLED WITH
+   1.16.6
