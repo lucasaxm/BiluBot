@@ -32,10 +32,6 @@ class GalleryDLService
     FileUtils.mv(filepath, new_filepath)
     result.information[:local_path] = new_filepath
     send_gallerydl_media(message, GalleryDL::Media.new(message.text, {}, [result.information]))
-  rescue Terrapin::ExitStatusError => e
-    logger.warn "Failed to send video. message: #{e.message.each_line.grep /^ERROR/}"
-  rescue Timeout::Error => e
-    @bilu.log_to_channel("Exception Class: [#{e.class.name}]\nException Message: [#{e.message}'].", message)
   end
 
   def send_media(message)
@@ -49,11 +45,9 @@ class GalleryDLService
       return
     end
     send_gallerydl_media(message, result)
-  rescue Terrapin::ExitStatusError => e
+  rescue => e
     logger.warn "Failed to send media. message: #{e.message.each_line.grep /\[error\]/}"
     fallback_youtubedl(message)
-  rescue Timeout::Error => e
-    @bot.log_to_channel("Exception Class: [#{e.class.name}]\nException Message: [#{e.message}'].", message)
   end
 
   def build_caption(information)
