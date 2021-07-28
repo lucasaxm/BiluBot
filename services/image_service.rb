@@ -6,8 +6,9 @@ class ImageService
   include Logging, Magick
 
   # @param [Bilu::Bot] bilu
-  def initialize(bilu)
+  def initialize(bilu, message)
     @bilu = bilu
+    @message = message
   end
 
   def is_image? m
@@ -49,14 +50,14 @@ class ImageService
     @bilu.download_file(telegram_file_path, file_name)
   end
 
-  def distort_reply(message)
-    return unless message.reply_to_message
-    distort message.reply_to_message
+  def distort_reply
+    return unless @message.reply_to_message
+    distort @message.reply_to_message
   end
 
-  def deepfry_reply(message)
-    return unless message.reply_to_message
-    deepfry message.reply_to_message
+  def deepfry_reply
+    return unless @message.reply_to_message
+    deepfry @message.reply_to_message
   end
 
   def send_photo_from_instagram(message)
@@ -76,7 +77,7 @@ class ImageService
     send_photo(message, url, description)
   end
 
-  def deepfry(m)
+  def deepfry(m=@message)
     file_path = download_image m
 
     @bilu.bot.api.send_chat_action(

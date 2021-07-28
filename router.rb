@@ -17,8 +17,8 @@ module Router
     routes.each do |map|
       route = map.last
       logger.info("Message '#{message.to_s}' routed to #{route[:controller]}##{route[:action]}") unless message.nil?
-      controller = route[:controller].new bot
-      controller.send route[:action], message, chat
+      controller = route[:controller].new bot, message
+      controller.send route[:action], chat
     end
   end
 
@@ -40,6 +40,7 @@ module Router
         chat.grouptitle = message.chat.title
       end
     end
+    chat.nsfw = true
     chat.save
     chat
   end

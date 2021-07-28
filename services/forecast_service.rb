@@ -6,16 +6,17 @@ class ForecastService
   include Logging
 
   # @param [Bilu::Bot] bilu
-  def initialize(bilu)
+  def initialize(bilu, message)
     ForecastConfig.set_up_forecastio_api
     @bilu = bilu
+    @message = message
   end
 
-  # @param [Telegram::Bot::Types::Message] message
-  def get_current_weather(message)
-    text_array = message.text.split(' ')
+  # @param [Telegram::Bot::Types::Message] @message
+  def get_current_weather
+    text_array = @message.text.split(' ')
     if text_array.size <= 1
-      send_help_message(message)
+      send_help_message
       return
     end
     cityname = text_array[1..-1].join ' '
@@ -49,7 +50,7 @@ class ForecastService
         answer = "#{city}\n#{time}\n#{icon} `#{forecast.temperature}°C (#{forecast.apparentTemperature}°C), #{forecast.summary}`"
         logger.info(answer.to_json)
       end
-      @bilu.reply_with_markdown_text(answer, message)
+      @bilu.reply_with_markdown_text(answer, @message)
     end
   end
 
@@ -59,10 +60,10 @@ class ForecastService
     ForecastConfig.city_search_api.get('searchJSON', q: cityname).body
   end
 
-  def send_help_message(message)
+  def send_help_message
     help =
       "`/weather city`\n\u{2022} Get current weather conditions for the city."
-    @bilu.reply_with_markdown_text(help, message)
+    @bilu.reply_with_markdown_text(help, @message)
   end
 
   def get_weather_icon(icon)

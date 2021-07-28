@@ -5,12 +5,12 @@ require_relative '../services/gallery_dl_service'
 class GalleryDLController
   include Logging
 
-  def initialize(bilu)
-    @service = GalleryDLService.new(bilu)
+  def initialize(bilu, message)
+    @service = GalleryDLService.new(bilu, message)
   end
 
-  def send_media(message, chat)
-    @service.send_media(message)
+  def send_media(chat)
+    @service.send_media
   end
 
 end

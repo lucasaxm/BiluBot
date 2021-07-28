@@ -5,19 +5,19 @@ class ImageController
   include Logging
 
   # @param [Bilu::Bot] bilu Telegram bot instance
-  def initialize(bilu)
-    @service = ImageService.new(bilu)
+  def initialize(bilu, message)
+    @service = ImageService.new(bilu, message)
   end
 
-  def distort_reply(message, chat)
-    @service.distort_reply(message)
+  def distort_reply(chat)
+    @service.distort_reply
   end
 
-  def deepfry_reply(message, chat)
-    @service.deepfry_reply(message)
+  def deepfry_reply(chat)
+    @service.deepfry_reply
   end
 
-  def deepfry(message, chat)
-    @service.deepfry(message)
+  def deepfry(chat)
+    @service.deepfry
   end
 end
