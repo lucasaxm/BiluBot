@@ -148,7 +148,9 @@ module Bilu
 
     def process_update(message)
       logger.message = message
-      Router.route_message(self, message)
+      Timeout::timeout(30, nil, 'Timeout processing message.') {
+        Router.route_message(self, message)
+      }
     end
 
     # returns file path
