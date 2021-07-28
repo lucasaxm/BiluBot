@@ -34,7 +34,7 @@ GEM
     dotenv (2.7.2)
     down (5.2.0)
       addressable (~> 2.5)
-    equalizer (0.0.11)
+    dry-inflector (0.2.0)
     faraday (0.15.4)
       multipart-post (>= 1.2, < 3)
     faraday_middleware (0.13.1)
@@ -58,7 +58,6 @@ GEM
     i18n (1.6.0)
       concurrent-ruby (~> 1.0)
     ice_nine (0.11.2)
-    inflecto (0.0.2)
     mini_portile2 (2.4.0)
     minitest (5.11.3)
     multi_json (1.13.1)
@@ -75,10 +74,10 @@ GEM
     rmagick (4.1.2)
     streamio-ffmpeg (3.0.2)
       multi_json (~> 1.8)
-    telegram-bot-ruby (0.14.0)
+    telegram-bot-ruby (0.16.0)
+      dry-inflector
       faraday
-      inflecto
-      virtus
+      virtus (~> 2.0)
     terrapin (0.6.0)
       climate_control (>= 0.0.3, < 1.0)
     thread_safe (0.3.6)
@@ -88,11 +87,10 @@ GEM
     unf (0.1.4)
       unf_ext
     unf_ext (0.0.7.6)
-    virtus (1.0.5)
+    virtus (2.0.0)
       axiom-types (~> 0.1)
       coercible (~> 1.0)
       descendants_tracker (~> 0.0, >= 0.0.3)
-      equalizer (~> 0.0, >= 0.0.9)
     youtube-dl.rb (0.3.1.2016.09.11.1)
       cocaine (>= 0.5.4)
 
@@ -117,7 +115,7 @@ DEPENDENCIES
   redd (~> 0.8.8)
   rmagick
   streamio-ffmpeg
-  telegram-bot-ruby (~> 0.14.0)
+  telegram-bot-ruby (~> 0.16.0)
   timezone (~> 1.0)
   youtube-dl.rb
 
