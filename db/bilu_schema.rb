@@ -15,6 +15,7 @@ module BiluSchema
           t.string :telegram_type
           t.string :grouptitle
           t.string :username
+          t.boolean :nsfw
         end
 
         ActiveRecord::Base.connection.create_table :subreddits do |t|
@@ -35,6 +36,11 @@ module BiluSchema
         ActiveRecord::Base.connection.create_table :chats_reddit_posts do |t|
           t.integer :chat_id
           t.integer :reddit_post_id
+        end
+
+        ActiveRecord::Base.connection.create_table :banned_subreddits do |t|
+          t.integer :chat_id
+          t.integer :subreddit_id
         end
       rescue ActiveRecord::StatementInvalid => e
         if e.cause.class.equal? PG::DuplicateTable

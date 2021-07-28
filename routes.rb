@@ -48,6 +48,18 @@ module Routes
           action: :get_media_from_subreddit_callback
       },
       lambda do |message|
+        regex_match message, %r{^/((usr)|(unbansubreddit)) \w+$}i
+      end => {
+        controller: RedditController,
+        action: :unban_subreddit
+      },
+      lambda do |message|
+        regex_match message, %r{^/((bsr)|(bansubreddit)) \w+$}i
+      end => {
+        controller: RedditController,
+        action: :ban_subreddit
+      },
+      lambda do |message|
         regex_match message, %r{^\/weather [[:alpha:]]+( [[:alpha:]]+)*$}i
       end => {
           controller: ForecastController,
@@ -58,18 +70,6 @@ module Routes
       end => {
           controller: MiscController,
           action: :delete_message
-      },
-      lambda do |message|
-        regex_match message, %r{inline_query}
-      end => {
-          controller: RedditController,
-          action: :handle_inline_query
-      },
-      lambda do |message|
-        regex_match message, %r{chosen_inline_result}
-      end => {
-          controller: RedditController,
-          action: :handle_chosen_inline_result
       },
       lambda do |message|
         is_reddit_link?(message)
@@ -126,14 +126,20 @@ module Routes
           action: :distort_reply
       },
       lambda do |message|
-        regex_match message, %r{^fry}i
+        regex_match message, %r{^fry$}i
       end => {
           controller: ImageController,
           action: :deepfry_reply
       },
       lambda do |message|
+        regex_match message, %r{^\/fry$}i
+      end => {
+        controller: ImageController,
+        action: :deepfry_reply
+      },
+      lambda do |message|
         # percentage integer
-        probability = 2
+        probability = 1
         return false unless is_image? message
         rand(100) < probability
       end => {
