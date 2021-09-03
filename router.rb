@@ -40,7 +40,7 @@ module Router
         chat.grouptitle = message.chat.title
       end
     end
-    chat.nsfw = true
+    chat.nsfw = true if chat.nsfw.nil?
     chat.save
     chat
   end

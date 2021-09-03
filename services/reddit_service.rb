@@ -102,6 +102,11 @@ class RedditService
     return if subreddit_db.nil?
     logger.info("searching for /r/#{subreddit_name}.")
     error_count ||= 0
+    if !chat.nsfw? && subreddit_db.nsfw?
+      answer = 'NSFW subreddits are banned.'
+      @bilu.reply_with_text(answer, @message)
+      return
+    end
     if is_banned?(subreddit_db, chat)
       answer = 'This subreddit is banned'
       @bilu.reply_with_text(answer, @message)
@@ -131,6 +136,10 @@ class RedditService
         logger.info("##{i + 1} of #{hot_posts.size} was already sent.")
         next
       end
+      if !chat.nsfw? && reddit_post.nsfw?
+        logger.info("##{i + 1} of #{hot_posts.size} is NSFW and it's not allowed in this chat.")
+        next
+      end
       reddit_post.chats << chat
       reddit_post.save
       logger.info("Sending ##{i + 1} of #{hot_posts.size} posts.")
@@ -139,8 +148,8 @@ class RedditService
       break
     end
     if sample.nil?
-      logger.warn('There are no posts left to send. Sending "try again later" message.')
-      answer = 'You have seen all hot posts in this subreddit. Try again later.'
+      logger.warn('There are no posts left to send. Sending "no available" message.')
+      answer = 'No available posts in this subreddit right now.'
       @bilu.reply_with_text(answer, @message)
     else
       send_media(sample)
@@ -164,12 +173,17 @@ class RedditService
     @bilu.reply_with_text(answer, @message)
   end
 
-  def get_media_from_url(_chat)
+  def get_media_from_url(chat)
     words = @message.text.split('/')
     comments_index = words.find_index('comments')
     return if comments_index.nil? || words[comments_index + 1].nil?
     post_id = 't3_' + words[comments_index + 1]
     post = reddit_post_from_id(post_id)
+    if !chat.nsfw? && post.over_18
+      answer = 'NSFW posts are banned.'
+      @bilu.reply_with_text(answer, @message)
+      return
+    end
     send_media(post)
   end
 
@@ -291,7 +305,7 @@ class RedditService
     ]
     if @available_posts.positive?
       button_array << Telegram::Bot::Types::InlineKeyboardButton.new(
-        text: "Next post? (#{@available_posts} post#{'s' if @available_posts > 1} left)",
+        text: "Next post from r/#{post.subreddit.display_name}",
         callback_data: "callback /r #{post.subreddit.display_name}"
       )
     end
