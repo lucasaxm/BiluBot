@@ -41,6 +41,12 @@ module Routes
           controller: RedditController,
           action: :get_media_from_subreddit
       },
+      #lambda do |message|
+      #  regex_match message, %r{^\/delete$}i
+      #end => {
+      #    controller: MiscController,
+      #    action: :delete_reply
+      #},
       lambda do |message|
         regex_match message, %r{^callback /((r)|(reddit)) \w+$}i
       end => {

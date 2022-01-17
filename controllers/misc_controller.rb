@@ -8,6 +8,10 @@ class MiscController
     @service = MiscService.new(bilu, message)
   end
 
+  def delete_reply(chat)
+    @service.delete_reply
+  end
+
   def delete_message(chat)
     @service.delete_message
   end

@@ -235,8 +235,9 @@ class RedditService
 
   def send_local_mp4(post, filepath)
     logger.debug("START - Sending #{filepath} as video through telegram API.")
-    new_filepath = "#{SecureRandom.hex}.mp4"
-    @bilu.transcode_video_to_mp4(filepath, new_filepath)
+    new_filepath = filepath
+    #new_filepath = "#{SecureRandom.hex}.mp4"
+    #@bilu.transcode_video_to_mp4(filepath, new_filepath)
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'upload_video'

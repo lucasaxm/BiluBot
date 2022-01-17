@@ -12,11 +12,16 @@ class GalleryDLService
     GalleryDLConfig.save_config
     @bilu = bilu
     @message = message
+    @dir='./gallerydl'
+  end
+
+  def clean_dir
+    FileUtils.rm(dir) if File.exists?(dir)
   end
 
   def fallback_youtubedl
     logger.info 'Retrying with YoutubeDL'
-    filepath = "#{@message.message_id}"
+    filepath = "#{@dir}/#{@message.message_id}"
     options = {
         format: 'best[filesize<?20M]/best',
         output: filepath
@@ -33,6 +38,9 @@ class GalleryDLService
     FileUtils.mv(filepath, new_filepath)
     result.information[:local_path] = new_filepath
     send_gallerydl_media(GalleryDL::Media.new(@message.text, {}, [result.information]))
+  ensure
+    logger.warn `pkill -e youtube-dl`
+    logger.warn `rm -rfv #{@dir}`
   end
 
   def send_media
