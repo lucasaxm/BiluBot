@@ -11,6 +11,7 @@ require 'pg'
 require "down"
 require "fileutils"
 require 'streamio-ffmpeg'
+require 'optparse'
 
 module Bilu
   include Logging
@@ -20,33 +21,16 @@ module Bilu
     attr_reader :bot
 
     def initialize
-      @pidfile = "#{__FILE__}.pid"
-      save_pid
       BiluSchema.create_db
-      @bot = Telegram::Bot::Client.new(TelegramConfig.telegram_token)
-      ActiveRecord::Base.establish_connection ENV['DATABASE_URL']
-      logger.info('server started')
-    end
-
-    def save_pid
-      File.open(@pidfile, 'a+') do |file|
-        begin
-          oldpid = file.read.chomp
-          unless oldpid.empty?
-            logger.debug("killing (#{oldpid}).")
-            Process.kill('KILL', oldpid.to_i)
-          end
-        rescue Errno::ESRCH
-          logger.warn("old process (#{oldpid}) already killed")
-        rescue Errno::EPERM
-          logger.error("You don't have permissions to kill the process #{oldpid}")
-        ensure
-          logger.debug("saving PID (#{Process.pid}) into file #{@pidfile}")
-          file.truncate(0)
-          file.write(Process.pid)
-          logger.info("PID (#{Process.pid}) saved in file #{@pidfile}")
+      token = TelegramConfig.telegram_token
+      OptionParser.new do |opts|
+        opts.on('-d', '--dev', 'dev mode') do
+          token = TelegramConfig.telegram_dev_token
         end
-      end
+      end.parse!
+      @bot = Telegram::Bot::Client.new(token)
+      ActiveRecord::Base.establish_connection ENV['DATABASE_URL']
+      logger.info("server started as #{@bot.api.get_me['result']['username']}")
     end
 
     def listen(&block)
@@ -148,9 +132,7 @@ module Bilu
 
     def process_update(message)
       logger.message = message
-      Timeout::timeout(30, nil, 'Timeout processing message.') {
-        Router.route_message(self, message)
-      }
+      Router.route_message(self, message)
     end
 
     # returns file path

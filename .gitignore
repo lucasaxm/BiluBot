@@ -18,4 +18,3 @@ gen
 /gallery-dl/
 nohup.out
 .byebug_history
-bot.rb.pid
