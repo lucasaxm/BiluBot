@@ -228,6 +228,8 @@ class RedditService
       result = GalleryDL.download "reddit.com#{post.permalink}"
       filepath = result.information.first[:local_path]
       send_local_mp4(post, filepath)
+    elsif post.is_gallery
+      send_gallery(post)
     else
       send_photo(post)
     end
@@ -330,6 +332,36 @@ class RedditService
       )
     )
     logger.debug("END - Sending #{mp4url} as video through telegram API.")
+  end
+
+  def send_gallery(post)
+    logger.debug("START - Sending media group through telegram API.")
+    @bilu.bot.api.send_chat_action(
+      chat_id: get_telegram_chat_id,
+      action: 'typing'
+    )
+    post.media_metadata.each_slice(10) do |medias|
+      @bilu.bot.api.send_media_group(
+        chat_id: get_telegram_chat_id,
+        reply_to_message_id: get_telegram_message_id,
+        media: medias.map do |_id, metadata|
+          logger.debug("Adding #{metadata[:p].last[:u]} to media group.")
+          {
+            type: 'photo',
+            media: metadata[:p].last[:u]
+          }
+        end
+      )
+    end
+    @bilu.bot.api.send_message(
+      chat_id: get_telegram_chat_id,
+      text: reddit_post_caption(post),
+      reply_to_message_id: get_telegram_message_id,
+      reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+        inline_keyboard: reddit_post_buttons(post)
+      )
+    )
+    logger.debug("END - Sending media group through telegram API.")
   end
 
   def send_gif(post)

@@ -40,7 +40,8 @@ class GalleryDLService
     send_gallerydl_media(GalleryDL::Media.new(@message.text, {}, [result.information]))
   ensure
     logger.warn `pkill -e youtube-dl`
-    logger.warn `rm -rfv #{@dir}`
+    logger.warn `rm -fv #{filepath}`
+    logger.warn `rm -rfv #{filepath}`
   end
 
   def send_media
