@@ -36,7 +36,7 @@ class RedditService
     text_array = @message.text.split(' ')
     if chat.telegram_type != 'private'
       chat_member = @bilu.bot.api.get_chat_member(chat_id: chat.telegram_id, user_id: @message.from.id)
-      status = chat_member["result"]["status"]
+      status = chat_member['result']['status']
       if (status != 'creator') && (status != 'administrator')
         @bilu.reply_with_text('You are not an Administrator', @message)
         return
@@ -49,6 +49,7 @@ class RedditService
     subreddit_name = text_array[1]
     subreddit_db = get_subreddit_from_db(subreddit_name)
     return if subreddit_db.nil?
+
     logger.info("banning /r/#{subreddit_name} on chat #{chat.telegram_id}.")
     banned_subreddit = BannedSubreddit.find_or_initialize_by(chat_id: chat.id, subreddit_id: subreddit_db.id)
     if banned_subreddit.new_record?
@@ -64,7 +65,7 @@ class RedditService
     text_array = @message.text.split(' ')
     if chat.telegram_type != 'private'
       chat_member = @bilu.bot.api.get_chat_member(chat_id: chat.telegram_id, user_id: @message.from.id)
-      status = chat_member["result"]["status"]
+      status = chat_member['result']['status']
       if (status != 'creator') && (status != 'administrator')
         @bilu.reply_with_text('You are not an Administrator', @message)
         return
@@ -77,6 +78,7 @@ class RedditService
     subreddit_name = text_array[1]
     subreddit_db = get_subreddit_from_db(subreddit_name)
     return if subreddit_db.nil?
+
     logger.info("banning /r/#{subreddit_name} on chat #{chat.telegram_id}.")
     banned_subreddit = BannedSubreddit.find_by(chat_id: chat.id, subreddit_id: subreddit_db.id)
     if banned_subreddit.nil?
@@ -100,6 +102,7 @@ class RedditService
     subreddit_name = text_array[1]
     subreddit_db = get_subreddit_from_db(subreddit_name)
     return if subreddit_db.nil?
+
     logger.info("searching for /r/#{subreddit_name}.")
     error_count ||= 0
     if !chat.nsfw? && subreddit_db.nsfw?
@@ -123,7 +126,7 @@ class RedditService
       @bilu.reply_with_text(answer, @message)
       return
     end
-    sample = nil
+    post_to_send = nil
     hot_posts.each_with_index do |hot_post, i|
       reddit_post = RedditPost.find_or_initialize_by(reddit_id: hot_post.id)
       if reddit_post.new_record?
@@ -144,15 +147,15 @@ class RedditService
       reddit_post.save
       logger.info("Sending ##{i + 1} of #{hot_posts.size} posts.")
       @available_posts = hot_posts.size - (i + 1)
-      sample = hot_post
+      post_to_send = hot_post
       break
     end
-    if sample.nil?
+    if post_to_send.nil?
       logger.warn('There are no posts left to send. Sending "no available" message.')
       answer = 'No available posts in this subreddit right now.'
       @bilu.reply_with_text(answer, @message)
     else
-      send_media(sample)
+      send_media(post_to_send)
     end
   rescue Redd::NotFound, JSON::ParserError => e
     answer = "subreddit #{subreddit_name} not found."
@@ -177,7 +180,8 @@ class RedditService
     words = @message.text.split('/')
     comments_index = words.find_index('comments')
     return if comments_index.nil? || words[comments_index + 1].nil?
-    post_id = 't3_' + words[comments_index + 1]
+
+    post_id = "t3_#{words[comments_index + 1]}"
     post = reddit_post_from_id(post_id)
     if !chat.nsfw? && post.over_18
       answer = 'NSFW posts are banned.'
@@ -216,7 +220,7 @@ class RedditService
     logger.debug("Post: score=[#{post.score}] title=[#{post.title}] url=[#{post.url}]")
     return if post.is_self
     url_extension = post.url.split('.').last
-    if url_extension == 'gif' || url_extension == 'gifv'
+    if ['gif', 'gifv'].include?(url_extension)
       send_gifv(post)
     elsif url_extension == 'mp4'
       send_mp4(post)
@@ -228,7 +232,7 @@ class RedditService
       result = GalleryDL.download "reddit.com#{post.permalink}"
       filepath = result.information.first[:local_path]
       send_local_mp4(post, filepath)
-    elsif post.is_gallery
+    elsif (post.instance_variable_get :@attributes)[:is_gallery]
       send_gallery(post)
     else
       send_photo(post)
@@ -238,8 +242,6 @@ class RedditService
   def send_local_mp4(post, filepath)
     logger.debug("START - Sending #{filepath} as video through telegram API.")
     new_filepath = filepath
-    #new_filepath = "#{SecureRandom.hex}.mp4"
-    #@bilu.transcode_video_to_mp4(filepath, new_filepath)
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'upload_video'
@@ -255,9 +257,9 @@ class RedditService
       )
     )
     upload.close
-    FileUtils.rm(filepath) if File.exists?(filepath)
-    FileUtils.rm("#{filepath}.json") if File.exists?("#{filepath}.json")
-    FileUtils.rm(new_filepath) if File.exists?(new_filepath)
+    FileUtils.rm(filepath) if File.exist?(filepath)
+    FileUtils.rm("#{filepath}.json") if File.exist?("#{filepath}.json")
+    FileUtils.rm(new_filepath) if File.exist?(new_filepath)
     logger.debug("END - Sending #{filepath} as video through telegram API.")
   end
 
@@ -335,7 +337,7 @@ class RedditService
   end
 
   def send_gallery(post)
-    logger.debug("START - Sending media group through telegram API.")
+    logger.debug('START - Sending media group through telegram API.')
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'typing'
@@ -361,7 +363,7 @@ class RedditService
         inline_keyboard: reddit_post_buttons(post)
       )
     )
-    logger.debug("END - Sending media group through telegram API.")
+    logger.debug('END - Sending media group through telegram API.')
   end
 
   def send_gif(post)
@@ -401,7 +403,7 @@ class RedditService
   def reddit_post_caption(post)
     caption = "#{post.over_18 ? "\u{1F51E} NSFW " : ''}#{post.spoiler ? "\u{26A0} SPOILER" : ''}\n#{post.title}"
     unless @callback.nil?
-      caption += "\n\n[post request by #{@callback.from.username.nil? ? @callback.from.first_name : '@' + @callback.from.username}]"
+      caption += "\n\n[post request by #{@callback.from.username.nil? ? @callback.from.first_name : "@#{@callback.from.username}"}]"
     end
     caption
   end
@@ -435,15 +437,15 @@ class RedditService
   def get_subreddit_hot_media_posts(subreddit)
     logger.debug('START - Fetching and filtering posts.')
     selection = get_subreddit_hot_posts(subreddit).find_all do |p|
-      !p.url.nil? &&
+      (!p.url.nil? &&
         ((p.url.end_with? '.jpg') ||
           (p.url.end_with? '.png') ||
           (p.url.end_with? '.gif') ||
           (p.url.end_with? '.gifv') ||
           (p.url.end_with? '.mp4') ||
           (p.url.include? 'gfycat.com') ||
-          (p.is_reddit_media_domain && p.is_video)
-        )
+          (p.is_reddit_media_domain && p.is_video))) ||
+        (p.instance_variable_get :@attributes)[:is_gallery]
     end
     logger.debug('END - Fetching and filtering posts.')
     selection

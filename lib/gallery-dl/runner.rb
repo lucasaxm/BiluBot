@@ -53,16 +53,18 @@ module GalleryDL
     def to_command
       terrapin_line(options_to_commands).command(@options.store)
     end
+
     alias_method :command, :to_command
 
     # Runs the command
     #
     # @return [String] the output of gallery-dl
     def run
-      Timeout::timeout(20, nil, "Terrapin run timeout. options=[#{options_to_commands}]") do
+      Timeout::timeout(300, nil, "Terrapin run timeout. options=[#{options_to_commands}]") do
         terrapin_line(options_to_commands).run(@options.store)
       end
     end
+
     alias_method :download, :run
 
     # Options configuration.
