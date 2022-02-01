@@ -25,7 +25,7 @@ class GalleryDLService
     logger.info 'Retrying with YoutubeDL'
     filepath = "#{@dir}/#{@message.message_id}"
     options = {
-      format: 'best[filesize<?20M]/best',
+      format: 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]',
       output: filepath
     }
     result = Timeout.timeout(300, nil, "YoutubeDL.download timeout. url=[#{@message.text}] options=[#{options}]") do
