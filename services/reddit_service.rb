@@ -10,6 +10,7 @@ require_relative '../models/reddit_post'
 require_relative '../models/subreddit'
 require_relative '../models/banned_subreddit'
 require_relative '../models/chat'
+require_relative 'screenshot_service'
 
 ##
 # Class that holds all logic related to Reddit
@@ -246,10 +247,19 @@ class RedditService
 
   def send_media(post)
     logger.debug("Post: score=[#{post.score}] title=[#{post.title}] url=[#{post.url}]")
-    raise Telegram::Bot::Exceptions::Base, 'Self post' if post.is_self
+    # raise Telegram::Bot::Exceptions::Base, 'Self post' if post.is_self
 
     url_extension = post.url.split('.').last
-    if %w[gif gifv].include?(url_extension)
+    if post.is_self
+      send_photo(post, ScreenshotService.screenshot_url("https://reddit.com#{post.permalink}", {
+        format: 'jpeg',
+        width: '393',
+        height: '851',
+        quality: '100',
+        user_agent: 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
+        element: "##{post.name}"
+      }))
+    elsif %w[gif gifv].include?(url_extension)
       send_gifv(post)
     elsif url_extension == 'mp4'
       send_mp4(post)
@@ -308,20 +318,21 @@ class RedditService
     end
   end
 
-  def send_photo(post)
-    logger.debug("START - Sending #{post.url} as photo through telegram API.")
+  def send_photo(post, url = nil)
+    url = post.url if url.nil?
+    logger.debug("START - Sending #{url} as photo through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'upload_photo'
     )
     @bilu.bot.api.send_photo(
       chat_id: get_telegram_chat_id,
-      photo: post.url.to_s,
+      photo: url.to_s,
       caption: reddit_post_caption(post),
       reply_to_message_id: get_telegram_message_id,
       reply_markup: RedditService.reddit_post_reply_markup(post)
     )
-    logger.debug("END - Sending #{post.url} as photo through telegram API.")
+    logger.debug("END - Sending #{url} as photo through telegram API.")
   end
 
   def send_mp4(post, new_url = nil)
