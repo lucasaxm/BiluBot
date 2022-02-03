@@ -208,15 +208,15 @@ class RedditService
   def self.reddit_post_reply_markup(post)
     Telegram::Bot::Types::InlineKeyboardMarkup.new(
       inline_keyboard: [[
-                          Telegram::Bot::Types::InlineKeyboardButton.new(
-                            text: "#{post.num_comments} Comments",
-                            url: "https://www.reddit.com#{post.permalink}"
-                          ),
-                          Telegram::Bot::Types::InlineKeyboardButton.new(
-                            text: "More from r/#{post.subreddit.display_name}",
-                            callback_data: "callback /r #{post.subreddit.display_name}"
-                          )
-                        ]]
+        Telegram::Bot::Types::InlineKeyboardButton.new(
+          text: "#{post.num_comments} Comments",
+          url: "https://www.reddit.com#{post.permalink}"
+        ),
+        Telegram::Bot::Types::InlineKeyboardButton.new(
+          text: "More from r/#{post.subreddit.display_name}",
+          callback_data: "callback /r #{post.subreddit.display_name}"
+        )
+      ]]
     )
   end
 
@@ -251,14 +251,7 @@ class RedditService
 
     url_extension = post.url.split('.').last
     if post.is_self
-      send_photo(post, ScreenshotService.screenshot_url("https://reddit.com#{post.permalink}", {
-        format: 'jpeg',
-        width: '393',
-        height: '851',
-        quality: '100',
-        user_agent: 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
-        element: "##{post.name}"
-      }))
+      send_screenshot(post)
     elsif %w[gif gifv].include?(url_extension)
       send_gifv(post)
     elsif url_extension == 'mp4'
@@ -274,11 +267,14 @@ class RedditService
     elsif (post.instance_variable_get :@attributes)[:is_gallery]
       send_gallery(post)
     else
-      gallery_dl_service = GalleryDLService.new(@bilu, @message, post)
-      Timeout.timeout(30, Telegram::Bot::Exceptions::Base, 'GalleryDl Service Timeout.') {
-        gallery_dl_service.send_media
-      }
-      # send_photo(post)
+      begin
+        gallery_dl_service = GalleryDLService.new(@bilu, @message, post)
+        Timeout.timeout(30, Telegram::Bot::Exceptions::Base, 'GalleryDl Service Timeout.') do
+          gallery_dl_service.send_media
+        end
+      rescue Telegram::Bot::Exceptions::Base => e
+        send_screenshot(post)
+      end
     end
   end
 
@@ -297,6 +293,7 @@ class RedditService
       video: upload,
       caption: reddit_post_caption(post),
       reply_to_message_id: get_telegram_message_id,
+      supports_streaming: true,
       reply_markup: RedditService.reddit_post_reply_markup(post)
     )
     upload.close
@@ -346,6 +343,7 @@ class RedditService
       chat_id: get_telegram_chat_id,
       video: mp4url,
       caption: reddit_post_caption(post),
+      supports_streaming: true,
       reply_to_message_id: get_telegram_message_id,
       reply_markup: RedditService.reddit_post_reply_markup(post)
     )
@@ -435,6 +433,22 @@ class RedditService
     url_array.join '.'
   end
 
+  def send_screenshot(post)
+    permalink = "https://www.reddit.com#{post.permalink}"
+    logger.debug("START - Sending #{permalink} screenshot as photo through telegram API.")
+    @bilu.bot.api.send_chat_action(
+      chat_id: get_telegram_chat_id,
+      action: 'upload_photo'
+    )
+    send_photo(post, ScreenshotService.screenshot_url(permalink, {
+                                                        format: 'jpeg',
+                                                        quality: '100',
+                                                        cookies: "reddit_session=#{ENV['BILU_REDDIT_SESSION']};over18=1",
+                                                        element: "##{post.name}"
+                                                      }))
+    logger.debug("END - Sending #{permalink} screenshot as photo through telegram API.")
+  end
+
   def send_gifv(post)
     new_url = prepare_gifv_url(post.url)
     logger.debug("START - Sending #{new_url} as video through telegram API.")
@@ -446,6 +460,7 @@ class RedditService
       chat_id: get_telegram_chat_id,
       video: new_url,
       caption: reddit_post_caption(post),
+      supports_streaming: true,
       reply_to_message_id: get_telegram_message_id,
       reply_markup: RedditService.reddit_post_reply_markup(post)
     )

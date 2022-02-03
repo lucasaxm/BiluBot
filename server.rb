@@ -11,10 +11,12 @@ module Server
   bot ||= Bilu::Bot.new
   Thread.abort_on_exception = true
 
+  pool = Concurrent::FixedThreadPool.new(5) # 5 threads
+
   bot.listen do |message|
 
     if !message.nil? && (message.class == Telegram::Bot::Types::CallbackQuery || message.chat.type != 'channel')
-      Thread.new do
+      pool.post do
         Timeout.timeout(300, nil, 'Timeout processing message.') {
           begin
             bot.process_update message

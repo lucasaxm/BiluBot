@@ -10,7 +10,7 @@ class ScreenshotService
     api_url = 'https://api.apiflash.com/v1'
 
     conn = Faraday.new(url: api_url,
-                       params: { access_key: '085295f5463a4ad8b643bb225599c3b9', response_type: 'json' }) do |f|
+                       params: { access_key: ENV['BILU_APIFLASH_ACCESS_KEY'], response_type: 'json' }) do |f|
       f.response :json
       f.request :json
       f.response :logger

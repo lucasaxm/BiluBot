@@ -2,10 +2,10 @@ module GalleryDL
   # Video model for using and downloading a single media.
   class Media < Runner
     class << self
-      # Instantiate a new Video model and download the media
+      # Instantiate a new Media model and download the media
       #
-      #   YoutubeDL.download 'https://www.youtube.com/watch?v=KLRDLIIl8bA' # => #<YoutubeDL::Video:0x00000000000000>
-      #   YoutubeDL.get 'https://www.youtube.com/watch?v=ia1diPnNBgU', extract_audio: true, audio_quality: 0
+      #   GalleryDL.download 'https://www.youtube.com/watch?v=KLRDLIIl8bA' # => #<GalleryDL::Media:0x00000000000000>
+      #   GalleryDL.get 'https://www.youtube.com/watch?v=ia1diPnNBgU', extract_audio: true, audio_quality: 0
       #
       # @param url [String] URL to use and download
       # @param options [Hash] Options to pass in

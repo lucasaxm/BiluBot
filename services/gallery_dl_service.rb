@@ -1,5 +1,4 @@
 require 'telegram/bot'
-require 'youtube-dl'
 require 'timeout'
 require_relative '../config/gallery_dl_config'
 require_relative '../lib/gallery_dl'
@@ -12,49 +11,9 @@ class GalleryDLService
     GalleryDLConfig.save_config
     @bilu = bilu
     @message = message
-    @dir = './gallerydl'
+    @dir = './gallery-dl'
     @uploads_chat_id = ENV['BILU_UPLOADS_TELEGRAM_ID']
     @reddit_post = reddit_post
-  end
-
-  def clean_dir
-    FileUtils.rm(dir) if File.exist?(dir)
-  end
-
-  def fallback_youtubedl
-    logger.info 'Retrying with YoutubeDL'
-    filepath = "#{@dir}/#{@message.message_id}"
-    options = {
-      format: 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]',
-      output: filepath
-    }
-    result = Timeout.timeout(300, nil, "YoutubeDL.download timeout. url=[#{@message.text}] options=[#{options}]") do
-      if !@reddit_post.nil? && !@reddit_post.url.nil?
-        YoutubeDL.download @reddit_post.url, options
-      else
-        YoutubeDL.download @message.text, options
-      end
-    end
-    if result.nil?
-      logger.error 'Failed to download video using youtube-dl'
-      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
-
-      return
-    end
-    result.information[:category] = result.information[:extractor]
-    new_filepath = "#{filepath}.#{result.information[:ext]}"
-    FileUtils.mv(filepath, new_filepath)
-    result.information[:local_path] = new_filepath
-    send_gallerydl_media(GalleryDL::Media.new(@message.text, {}, [result.information]))
-  rescue => e
-    raise e if @reddit_post.nil?
-
-    logger.error e.message
-    raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error'
-  ensure
-    logger.warn "killing youtube-dl #{`pkill -e youtube-dl`}"
-    logger.warn "cleaning files #{filepath} #{`rm -fv #{filepath}`}"
-    logger.warn "cleaning directories #{filepath} #{`rm -rfv #{filepath}`}"
   end
 
   def send_media
@@ -79,15 +38,20 @@ class GalleryDLService
       return
     end
     send_gallerydl_media(result)
-  rescue => e
-    gallery_dl_errors = e.message.each_line.grep /\[error\]/
-    if gallery_dl_errors.empty?
-      logger.warn "Failed to send media. message: #{e.message}"
-      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
-    else
-      logger.warn "Failed to send media. message: #{gallery_dl_errors}"
-      fallback_youtubedl
-    end
+  rescue Terrapin::ExitStatusError => e
+    extractor_errors = e.message.split("\n").select { |x| x['[error]'] }
+
+    error_msg = case extractor_errors.size
+                when 0
+                  e.message
+                when 1
+                  extractor_errors.first
+                else
+                  extractor_errors.join("\n")
+                end
+
+    @bilu.log_to_channel(error_msg, @message)
+    raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
   ensure
     logger.warn "killing gallery-dl #{`pkill -e gallery-dl`}"
     logger.warn "cleaning gallery-dl local dir #{`rm -rf gallery-dl`}"
@@ -101,12 +65,21 @@ class GalleryDLService
       "#{information[:fullname]}(@#{information[:username]}):\n#{information[:description]}"
     when 'tiktok'
       "#{information[:title]}:\n#{information[:description]}"
-    when 'youtube'
-      "#{information[:title]}:\n#{information[:description]}"
     when 'mangadex'
       "#{information[:manga]}\nChapter #{information[:chapter]}"
     when 'reddit'
       "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}"
+    when 'ytdl'
+      case information[:subcategory].downcase
+      when 'youtube'
+        "#{information[:title]}:\n#{information[:description]}"
+      when 'facebook'
+        information[:fulltitle]
+      when 'generic'
+        information[:fulltitle]
+      else
+        information[:subcategory]
+      end
     else
       if @reddit_post.nil?
         information[:category]
@@ -137,7 +110,7 @@ class GalleryDLService
             end
           else
             file_size_mb = @bilu.file_size_mb(filepath)
-            if (File.extname(filepath) == '.mp4') && (file_size_mb < 20)
+            if (File.extname(filepath) == '.mp4') && (file_size_mb < 50)
               caption = build_caption(information)
               if first_caption.nil?
                 first_caption = caption
@@ -178,6 +151,7 @@ class GalleryDLService
   def upload_to_telegram(type, data)
     response = @bilu.bot.api.send "send_#{type}", {
       'chat_id' => @uploads_chat_id,
+      'supports_streaming' => true,
       type => data
     }
     if response['result'][type].is_a? Array
@@ -191,8 +165,12 @@ class GalleryDLService
       logger.debug "retrying after #{sleep_time}"
       sleep(sleep_time)
       retry
+    else
+      raise e
     end
   end
+
+  private
 
   def local_photo_media(filepath, caption = nil)
     file_ext = File.extname(filepath)
@@ -215,34 +193,14 @@ class GalleryDLService
     media
   end
 
-  def send_local_video(file_path, caption)
-    logger.debug("START - Sending #{file_path} as video through telegram API.")
-    @bilu.bot.api.send_chat_action(
-      chat_id: @message.chat.id,
-      action: 'upload_video'
-    )
-    upload = Faraday::UploadIO.new(file_path, 'video/mp4')
-    @bilu.bot.api.send_video(
-      chat_id: @message.chat.id,
-      video: upload,
-      caption: caption,
-      reply_to_message_id: @message.message_id
-    )
-    upload.close unless upload.nil?
-    logger.debug("END - Sending #{file_path} as video through telegram API.")
-
-  end
-
-  private
-
   def local_video_media(filepath, caption = nil)
     upload = Faraday::UploadIO.new(filepath, 'video/mp4')
     media = {
       type: 'video',
-      media: upload_to_telegram('video', upload)
+      media: upload_to_telegram('video', upload),
+      supports_streaming: true
     }
     media[:caption] = caption unless caption.nil?
     media
   end
-
 end

@@ -1,4 +1,3 @@
-require 'youtube-dl'
 require_relative '../logger/logging'
 require_relative '../services/gallery_dl_service'
 
