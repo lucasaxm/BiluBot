@@ -43,11 +43,10 @@ module BiluSchema
           t.integer :subreddit_id
         end
       rescue ActiveRecord::StatementInvalid => e
-        if e.cause.class.equal? PG::DuplicateTable
-          logger.info 'tables already exists'
-        else
-          logger.error e.cause
-        end
+        return if e.cause.class.equal? PG::DuplicateTable
+
+        logger.error e.cause
+        raise e
       end
     end
 
