@@ -74,7 +74,11 @@ class GalleryDLService
       when 'youtube'
         "#{information[:title]}:\n#{information[:description]}"
       when 'facebook'
-        information[:fulltitle]
+        if information[:fulltitle].downcase == 'watch'
+          "#{information[:uploader]}:\n#{information[:description]}"
+        else
+          information[:fulltitle]
+        end
       when 'generic'
         information[:fulltitle]
       else
