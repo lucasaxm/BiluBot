@@ -441,9 +441,10 @@ class RedditService
       action: 'upload_photo'
     )
     send_photo(post, ScreenshotService.screenshot_url(permalink, {
+                                                        response_type: 'json',
                                                         format: 'jpeg',
-                                                        quality: '100',
                                                         cookies: "reddit_session=#{ENV['BILU_REDDIT_SESSION']};over18=1",
+                                                        wait_until: 'dom_loaded',
                                                         element: "##{post.name}"
                                                       }))
     logger.debug("END - Sending #{permalink} screenshot as photo through telegram API.")
@@ -485,7 +486,7 @@ class RedditService
   end
 
   def get_subreddit_hot_posts(subreddit)
-    @reddit_session.subreddit(subreddit).hot.to_a
+    @reddit_session.subreddit(subreddit).hot.to_a.select{|h| !h.stickied }
   end
 
   def send_help_message
