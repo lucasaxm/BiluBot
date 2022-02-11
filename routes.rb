@@ -72,12 +72,6 @@ module Routes
           action: :get_current_weather
       },
       lambda do |message|
-        regex_match message, %r{^/markov(@mkv_bot)?$}i
-      end => {
-          controller: MiscController,
-          action: :delete_message
-      },
-      lambda do |message|
         is_reddit_link?(message)
       end => {
           controller: RedditController,
@@ -157,6 +151,18 @@ module Routes
       end => {
           controller: GalleryDLController,
           action: :send_media
+      },
+      lambda do |message|
+        regex_match message, %r{^-p [[:alpha:]]+( [[:alpha:]]+)*$}i
+      end => {
+          controller: GalleryDLController,
+          action: :search_and_send_as_audio
+      },
+      lambda do |message|
+        regex_match message, %r{^-v [[:alpha:]]+( [[:alpha:]]+)*$}i
+      end => {
+          controller: GalleryDLController,
+          action: :search_and_send_as_video
       },
       lambda do |message|
         regex_match message, %r{^\/keyboard .*$}i

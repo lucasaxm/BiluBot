@@ -12,4 +12,11 @@ class GalleryDLController
     @service.send_media
   end
 
+  def search_and_send_as_audio(chat)
+    @service.search_and_send 'audio'
+  end
+
+  def search_and_send_as_video(chat)
+    @service.search_and_send 'video'
+  end
 end

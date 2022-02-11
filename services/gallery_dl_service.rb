@@ -16,6 +16,48 @@ class GalleryDLService
     @reddit_post = reddit_post
   end
 
+  # formats: audio or video
+  def search_and_send format
+    logger.info "Searching for '#{@message.text}' and sending as #{format}"
+    search_query = @message.text.split(' ')[1..-1].join(' ')
+    options = {}
+    if format == 'audio'
+      options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a]'
+    end
+    result = Timeout.timeout(300, nil, "GalleryDL.download timeout. url=[#{@message.text}] options=[#{options}]") do
+        GalleryDL.download "ytsearch:#{search_query}", options
+    end
+    if result.nil? || result.information.nil? || result.information.any? { |r| r[:local_path].nil? }
+      logger.error 'Failed to download media using gallery-dl'
+      @bilu.bot.api.send_message(
+        chat_id: @message.chat.id,
+        reply_to_message_id: @message.message_id,
+        text: 'Failed to download media'
+      )
+      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error'
+
+      return
+    end
+    send_gallerydl_media(result)
+  rescue Terrapin::ExitStatusError => e
+    extractor_errors = e.message.split("\n").select { |x| x['[error]'] }
+
+    error_msg = case extractor_errors.size
+                when 0
+                  e.message
+                when 1
+                  extractor_errors.first
+                else
+                  extractor_errors.join("\n")
+                end
+
+    @bilu.log_to_channel(error_msg, @message)
+    raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
+  ensure
+    logger.warn "killing gallery-dl #{`pkill -e gallery-dl`}"
+    logger.warn "cleaning gallery-dl local dir #{`rm -rf gallery-dl`}"
+  end
+
   def send_media
     logger.info "Trying to send #{@message.text} as media"
     options = {}
@@ -58,7 +100,7 @@ class GalleryDLService
   end
 
   def build_caption(information)
-    case information[:category].downcase
+    full_caption = case information[:category].downcase
     when 'twitter'
       "#{information[:author][:nick]}(@#{information[:author][:name]}):\n#{information[:content]}"
     when 'instagram'
@@ -71,8 +113,8 @@ class GalleryDLService
       "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}"
     when 'ytdl'
       case information[:subcategory].downcase
-      when 'youtube'
-        "#{information[:title]}:\n#{information[:description]}"
+      when 'youtube', 'youtubesearch'
+        "#{information[:title]}:\n#{information[:description]}" unless information[:extension] == 'm4a'
       when 'facebook'
         if information[:fulltitle].downcase == 'watch'
           "#{information[:uploader]}:\n#{information[:description]}"
@@ -90,7 +132,12 @@ class GalleryDLService
       else
         "#{@reddit_post.over_18 ? "\u{1F51E} NSFW " : ''}#{@reddit_post.spoiler ? "\u{26A0} SPOILER" : ''}\n#{@reddit_post.title}"
       end
-    end[0..1023]
+    end
+    if (!full_caption.nil?) && (full_caption.length > 150)
+      return full_caption[0..296]+'...'
+    end
+
+    full_caption
   end
 
   def send_gallerydl_media(result)
@@ -99,41 +146,14 @@ class GalleryDLService
     messages_sent = []
     result.information.each_slice(10) do |information_group|
       media = information_group.map do |information|
-        filepath = information[:local_path]
-        begin
-          logger.info("adding #{filepath} to media group")
-          if @bilu.is_local_image?(filepath)
-            caption = build_caption(information)
-            if first_caption.nil?
-              first_caption = caption
-              local_photo_media(filepath, first_caption)
-            elsif first_caption == caption
-              local_photo_media(filepath)
-            else
-              local_photo_media(filepath, caption)
-            end
-          else
-            file_size_mb = @bilu.file_size_mb(filepath)
-            if (File.extname(filepath) == '.mp4') && (file_size_mb < 50)
-              caption = build_caption(information)
-              if first_caption.nil?
-                first_caption = caption
-                local_video_media(filepath, first_caption)
-              elsif first_caption == caption
-                local_video_media(filepath)
-              else
-                local_video_media(filepath, caption)
-              end
-            else
-              error_msg = "Error sending file #{filepath}:#{file_size_mb}MB"
-              logger.warn(error_msg)
-              @bilu.log_to_channel(error_msg, @message)
-            end
-          end
-        ensure
-          FileUtils.rm(filepath) if File.exist?(filepath)
-          FileUtils.rm("#{filepath}.json") if File.exist?("#{filepath}.json")
+        uploaded_media = local_media information
+        logger.info("adding #{uploaded_media[:media]} to media group")
+        if first_caption.nil?
+          first_caption = uploaded_media[:caption]
+        elsif !uploaded_media[:caption].nil? && first_caption == uploaded_media[:caption]
+          uploaded_media.delete(:caption)
         end
+        uploaded_media
       end
       response = @bilu.bot.api.send_media_group(
         chat_id: @message.chat.id,
@@ -152,12 +172,14 @@ class GalleryDLService
                                })
   end
 
-  def upload_to_telegram(type, data)
-    response = @bilu.bot.api.send "send_#{type}", {
+  def upload_to_telegram(type, upload, options={})
+    payload = {
       'chat_id' => @uploads_chat_id,
       'supports_streaming' => true,
-      type => data
+      type => upload
     }
+    payload.merge! options
+    response = @bilu.bot.api.send "send_#{type}", payload
     if response['result'][type].is_a? Array
       response['result'][type].last['file_id']
     else
@@ -176,7 +198,20 @@ class GalleryDLService
 
   private
 
-  def local_photo_media(filepath, caption = nil)
+  def local_media(information)
+    case get_file_type information[:local_path]
+    when 'image'
+      local_photo_media(information)
+    when 'video'
+      local_video_media(information)
+    when 'audio'
+      local_audio_media(information)
+    end
+  end
+
+  def local_photo_media(information)
+    filepath = information[:local_path]
+    caption = build_caption(information)
     file_ext = File.extname(filepath)
     case file_ext
     when '.jpeg', '.jpg'
@@ -197,7 +232,9 @@ class GalleryDLService
     media
   end
 
-  def local_video_media(filepath, caption = nil)
+  def local_video_media(information)
+    filepath = information[:local_path]
+    caption = build_caption(information)
     upload = Faraday::UploadIO.new(filepath, 'video/mp4')
     media = {
       type: 'video',
@@ -206,5 +243,36 @@ class GalleryDLService
     }
     media[:caption] = caption unless caption.nil?
     media
+  end
+
+  def local_audio_media(information)
+    filepath = information[:local_path]
+    caption = build_caption(information)
+
+    upload = Faraday::UploadIO.new(filepath, 'audio/m4a')
+    options = {}
+    if (information[:category].downcase == 'ytdl') && (['youtube','youtubesearch'].include? information[:subcategory].downcase)
+      options['performer'] = information[:channel]
+      options['title'] = information[:title]
+      options['duration'] = information[:duration]
+    end
+    media = {
+      type: 'audio',
+      media: upload_to_telegram('audio', upload, options),
+      supports_streaming: true
+    }
+    media[:caption] = caption unless caption.nil?
+
+    media
+  end
+
+  # returns audio, video or image
+  def get_file_type(path)
+    ffmpeg_movie = FFMPEG::Movie.new(path)
+    return 'video' unless ffmpeg_movie.frame_rate.nil?
+
+    return 'audio' unless ffmpeg_movie.audio_codec.nil?
+
+    return 'image'
   end
 end

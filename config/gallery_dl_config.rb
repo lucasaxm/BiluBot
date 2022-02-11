@@ -12,7 +12,7 @@ module GalleryDLConfig
   # holds the api key used in ForecastIO configuration
   @config = {
     extractor: {
-      filename: '{filename}.{extension}',
+      filename: '{filename|id}.{extension}',
       twitter: {
         username: ENV['BILU_TWITTER_USERNAME'],
         password: ENV['BILU_TWITTER_PASSWORD'],
@@ -34,12 +34,6 @@ module GalleryDLConfig
         module: 'yt_dlp',
         Facebook: {
           'cmdline-args': "--add-header 'cookie: #{ENV['BILU_FACEBOOK_COOKIES']}'"
-        },
-        Generic: {
-          filename: '{id}.{extension}'
-        },
-        Youtube: {
-          filename: '{id}.{extension}'
         }
       }
     },
