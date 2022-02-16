@@ -175,6 +175,7 @@ class RedditService
       logger.info("Sending ##{i + 1} of #{hot_posts.size} posts.")
       reddit_post.save
       begin
+        return if special_subreddit(hot_post)
         send_media(hot_post)
       rescue Telegram::Bot::Exceptions::Base => e
         logger.error("Error sending post, trying next post if available. Exception Message: [#{e.message}]")
@@ -202,6 +203,7 @@ class RedditService
       @bilu.reply_with_text(answer, @message)
       return
     end
+    return if special_subreddit(post)
     send_media(post)
   end
 
@@ -281,8 +283,6 @@ class RedditService
   def send_local_mp4(post, filepath)
     logger.debug("START - Sending #{filepath} as video through telegram API.")
     new_filepath = filepath
-    # new_filepath = "#{SecureRandom.hex}.mp4"
-    # @bilu.transcode_video_to_mp4(filepath, new_filepath)
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'upload_video'
@@ -434,19 +434,32 @@ class RedditService
   end
 
   def send_screenshot(post)
-    permalink = "https://www.reddit.com#{post.permalink}"
+    style = post.spoiler ? 'i' : 'www'
+    permalink = "https://#{style}.reddit.com#{post.permalink}"
     logger.debug("START - Sending #{permalink} screenshot as photo through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'upload_photo'
     )
-    send_photo(post, ScreenshotService.screenshot_url(permalink, {
-                                                        response_type: 'json',
-                                                        format: 'jpeg',
-                                                        cookies: "reddit_session=#{ENV['BILU_REDDIT_SESSION']};over18=1",
-                                                        wait_until: 'dom_loaded',
-                                                        element: "##{post.name}"
-                                                      }))
+    
+    options = {
+      response_type: 'json',
+      format: 'jpeg',
+      cookies: "reddit_session=#{ENV['BILU_REDDIT_SESSION']};over18=1",
+      wait_until: 'dom_loaded',
+    }
+    case style
+    when 'www'
+      options.merge!({
+        element: "##{post.name}"
+      })
+    when 'i','old'
+      options.merge!({
+        element: '#siteTable',
+        width: 700
+      })
+    end
+    send_photo(post, ScreenshotService.screenshot_url(permalink, options))
     logger.debug("END - Sending #{permalink} screenshot as photo through telegram API.")
   end
 
@@ -493,5 +506,25 @@ class RedditService
     help =
       "`/reddit subreddit`\n\u{2022} Get a random media post from subreddit."
     @bilu.reply_with_markdown_text(help, @message)
+  end
+
+  def special_subreddit(post)
+    case post.subreddit.display_name.downcase
+    when 'wouldyourather'
+      return false if post.to_h[:poll_data].nil?
+
+      @bilu.bot.api.send_poll({
+        chat_id: get_telegram_chat_id,
+        question: post.title,
+        options: post.poll_data[:options].map{|option| option[:text]},
+        open_period: 300,
+        is_anonymous: false,
+        reply_markup: RedditService.reddit_post_reply_markup(post)
+      })
+    else
+      return false
+    end
+
+    return true
   end
 end
