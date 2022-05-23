@@ -12,6 +12,7 @@ class ScreenshotService
       f.response :json
       f.request :json
       f.response :logger
+      f.adapter Faraday.default_adapter
     end
   end
 

@@ -508,19 +508,23 @@ class RedditService
     @bilu.reply_with_markdown_text(help, @message)
   end
 
+  def send_poll(post)
+    @bilu.bot.api.send_poll({
+      chat_id: get_telegram_chat_id,
+      question: post.title,
+      options: post.poll_data[:options].map{|option| option[:text]},
+      open_period: 300,
+      is_anonymous: false,
+      reply_markup: RedditService.reddit_post_reply_markup(post)
+    })
+  end
+
   def special_subreddit(post)
     case post.subreddit.display_name.downcase
-    when 'wouldyourather'
+    when 'wouldyourather','polls'
       return false if post.to_h[:poll_data].nil?
 
-      @bilu.bot.api.send_poll({
-        chat_id: get_telegram_chat_id,
-        question: post.title,
-        options: post.poll_data[:options].map{|option| option[:text]},
-        open_period: 300,
-        is_anonymous: false,
-        reply_markup: RedditService.reddit_post_reply_markup(post)
-      })
+      send_poll(post)
     else
       return false
     end

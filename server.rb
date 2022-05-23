@@ -13,33 +13,31 @@ module Server
 
   pool = Concurrent::FixedThreadPool.new(5) # 5 threads
 
-  bot.listen do |message|
+  supported_messages = [
+    Telegram::Bot::Types::Message,
+    Telegram::Bot::Types::CallbackQuery
+  ]
 
-    if !message.nil? && (message.class == Telegram::Bot::Types::CallbackQuery || message.chat.type != 'channel')
-      pool.post do
-        Timeout.timeout(300, nil, 'Timeout processing message.') {
-          begin
-            bot.process_update message
-            # error_count = 0
-          rescue StandardError => e
-            # error_count += 1
-            logger.error("Exception Class: [#{e.class.name}]")
-            logger.error("Exception Message: [#{e.message}']")
-            # if message.class == Telegram::Bot::Types::Message
-            #   if error_count < MAX_ATTEMPTS
-            #     sleep(1)
-            #     logger.info("Retrying (Attempt #{error_count + 1}/#{MAX_ATTEMPTS})")
-            #     retry
-            unless bot.nil?
-              answer = "Exception Class: [#{e.class.name}]\nException Message: [#{e.message}']."
-              logger.error("Message=[#{answer}]")
-              bot.log_to_channel(answer, message)
-            end
-            # end
-          end
-        }
-      end
+  bot.listen do |message|
+    if (message.nil?) || (!supported_messages.include? message.class)
+      next
     end
 
+    pool.post do
+      Timeout.timeout(300, nil, 'Timeout processing message.') {
+        begin
+          bot.process_update message
+        rescue StandardError => e
+          logger.error("Exception Class: [#{e.class.name}]")
+          logger.error("Exception Message: [#{e.message}']")
+          unless bot.nil?
+            answer = "Exception Class: [#{e.class.name}]\nException Message: [#{e.message}']."
+            logger.error("Message=[#{answer}]")
+            bot.log_to_channel(answer, message)
+          end
+          # end
+        end
+      }
+    end
   end
 end

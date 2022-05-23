@@ -121,6 +121,8 @@ class GalleryDLService
         else
           information[:fulltitle]
         end
+      when 'twitchvod'
+        "#{information[:uploader]}:\n#{information[:fulltitle]}"
       when 'generic'
         information[:fulltitle]
       else
