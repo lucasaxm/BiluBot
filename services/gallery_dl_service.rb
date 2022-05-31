@@ -18,14 +18,14 @@ class GalleryDLService
 
   # formats: audio or video
   def search_and_send format
-    logger.info "Searching for '#{@message.text}' and sending as #{format}"
-    search_query = @message.text.split(' ')[1..-1].join(' ')
+    search_query = "ytsearch:#{@message.text.split(' ')[1..-1].join(' ')}"
+    logger.info "Searching for '#{search_query}' and sending as #{format}"
     options = {}
     if format == 'audio'
       options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a]'
     end
-    result = Timeout.timeout(300, nil, "GalleryDL.download timeout. url=[#{@message.text}] options=[#{options}]") do
-        GalleryDL.download "ytsearch:#{search_query}", options
+    result = Timeout.timeout(300, nil, "GalleryDL.download timeout. url=[#{search_query}] options=[#{options}]") do
+        GalleryDL.download search_query, options
     end
     if result.nil? || result.information.nil? || result.information.any? { |r| r[:local_path].nil? }
       logger.error 'Failed to download media using gallery-dl'
@@ -59,14 +59,37 @@ class GalleryDLService
   end
 
   def send_media
-    logger.info "Trying to send #{@message.text} as media"
+    unless @reddit_post.nil?
+      send_media_from_url @reddit_post.url
+      return
+    end
+    urls = @message['entities'].select do |entity|
+      entity['type'] == 'url' end.map do |url_entity|
+        @message['text'][url_entity['offset'], url_entity['length']]
+    end
+    errors = []
+    urls.each do |url|
+      begin
+        send_media_from_url url
+      rescue Telegram::Bot::Exceptions::Base => e
+        errors << url
+      end
+    end
+    raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{errors}" unless (@reddit_post.nil? || errors.empty?)
+  end
+
+  def send_media_from_url url
     options = {}
-    result = Timeout.timeout(300, nil, "GalleryDL.download timeout. url=[#{@message.text}] options=[#{options}]") do
+    result = Timeout.timeout(300, nil, "GalleryDL.download timeout. url=[#{url}] options=[#{options}]") do
       if @reddit_post.nil?
-        GalleryDL.download @message.text, options
+        logger.info "Trying to send #{url} as media"
+        GalleryDL.download url, options
       else
-        permalink_result = GalleryDL.download "reddit.com#{@reddit_post.permalink}", options
+        permalink = "reddit.com#{@reddit_post.permalink}"
+        logger.info "Trying to send #{permalink} as media"
+        permalink_result = GalleryDL.download permalink, options
         if permalink_result.information.empty? && !@reddit_post.url.nil?
+          logger.info "Trying to send #{@reddit_post.url} as media"
           GalleryDL.download @reddit_post.url, options
         else
           permalink_result

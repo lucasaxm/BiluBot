@@ -1,5 +1,4 @@
 require_relative 'domain/request_weather'
-require_relative 'config/telegram_config.rb'
 require_relative 'logger/logging'
 require_relative 'router'
 require_relative 'db/bilu_schema'
@@ -22,13 +21,15 @@ module Bilu
 
     def initialize
       BiluSchema.create_db
-      token = TelegramConfig.telegram_token
+      @token = ENV['BILU_TELEGRAM_TOKEN']
+      @log_id = ENV['BILU_TELEGRAM_LOG_ID']
       OptionParser.new do |opts|
         opts.on('-d', '--dev', 'dev mode') do
-          token = TelegramConfig.telegram_dev_token
+          @token = ENV['BILU_DEV_TELEGRAM_TOKEN']
+          @log_id = ENV['BILU_DEV_TELEGRAM_LOG_ID']
         end
       end.parse!
-      @bot = Telegram::Bot::Client.new(token)
+      @bot = Telegram::Bot::Client.new(@token)
       ActiveRecord::Base.establish_connection ENV['DATABASE_URL']
       logger.info("server started as #{@bot.api.get_me['result']['username']}")
     end
@@ -78,36 +79,26 @@ module Bilu
 
     def log_to_channel(text, message)
       begin
-        logger.info("Sending message '#{text.to_json}' to #{message.chat.id}.")
-        channel_id = ENV['TELEGRAM_LOG_CHANNEL_ID']
-        @bot.api.send_message(
-            chat_id: channel_id,
+        logger.info("Logging '#{text}'.")
+        error_msg = @bot.api.send_message(
+            chat_id: @log_id,
             text: text
         )
-        if !message.nil? && !message.chat.id.nil?
+        if !message.nil?
+          formatted_message = <<~MESSAGE
+            ```json
+            #{JSON.pretty_generate(message)}
+            ```
+          MESSAGE
           @bot.api.send_message(
-              chat_id: channel_id,
-              text: 'message:'
+              chat_id: @log_id,
+              text: formatted_message,
+              parse_mode: 'MarkdownV2',
+              reply_to_message_id: error_msg['result']['message_id']
           )
-          @bot.api.forward_message(
-              chat_id: channel_id,
-              from_chat_id: message.chat.id,
-              message_id: message.message_id
-          )
-          unless message.reply_to_message.nil?
-            @bot.api.send_message(
-                chat_id: channel_id,
-                text: 'that was a reply to:'
-            )
-            @bot.api.forward_message(
-                chat_id: channel_id,
-                from_chat_id: message.chat.id,
-                message_id: message.reply_to_message.message_id
-            )
-          end
         end
       rescue StandardError => e
-        answer = "Error #{e.class.name}: #{e.message}."
+        answer = "Error logging #{e.class.name}: #{e.message}."
         logger.error("Message=[#{answer}]")
       end
     end
@@ -146,8 +137,7 @@ module Bilu
     end
 
     def download_file(telegram_file_path, save_path=nil)
-      token = TelegramConfig.telegram_token
-      url = "https://api.telegram.org/file/bot#{token}/#{telegram_file_path}"
+      url = "https://api.telegram.org/file/bot#{@token}/#{telegram_file_path}"
       temp_file = Down.download(url)
       path = temp_file.path
       logger.info("file downloaded '#{path}'.")

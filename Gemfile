@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-ruby '~> 2.4.4'
+ruby '~> 2.6.0'
 
 gem 'activerecord', '~> 5.0', '>= 5.0.0.1'
 gem 'activesupport', '~> 5.2.3'
@@ -21,3 +21,4 @@ gem 'telegram-bot-ruby', '~> 0.16.0'
 gem 'timezone', '~> 1.0'
 gem 'nokogiri'
 gem 'streamio-ffmpeg'
+gem "terrapin", "~> 0.6.0"
