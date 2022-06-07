@@ -63,16 +63,14 @@ class GalleryDLService
       send_media_from_url @reddit_post.url
       return
     end
-    urls = @message['entities'].select do |entity|
-      entity['type'] == 'url' end.map do |url_entity|
-        @message['text'][url_entity['offset'], url_entity['length']]
-    end
+    urls = extract_urls @message
     errors = []
     urls.each do |url|
       begin
         send_media_from_url url
       rescue Telegram::Bot::Exceptions::Base => e
         errors << url
+        continue
       end
     end
     raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{errors}" unless (@reddit_post.nil? || errors.empty?)
@@ -80,7 +78,7 @@ class GalleryDLService
 
   def send_media_from_url url
     options = {}
-    result = Timeout.timeout(300, nil, "GalleryDL.download timeout. url=[#{url}] options=[#{options}]") do
+    result = Timeout.timeout(60, nil, "GalleryDL.download timeout. url=[#{url}] options=[#{options}]") do
       if @reddit_post.nil?
         logger.info "Trying to send #{url} as media"
         GalleryDL.download url, options
@@ -146,6 +144,8 @@ class GalleryDLService
         end
       when 'twitchvod'
         "#{information[:uploader]}:\n#{information[:fulltitle]}"
+      when 'steam'
+        "#{information[:webpage_url_basename]}"
       when 'generic'
         information[:fulltitle]
       else
@@ -299,5 +299,15 @@ class GalleryDLService
     return 'audio' unless ffmpeg_movie.audio_codec.nil?
 
     return 'image'
+  end
+
+  def extract_urls(msg)
+    msg['entities'].select do |entity|
+      entity['type'] == 'url'
+    end.map do |url_entity|
+      msg['text'].chars.map do |x|
+        x.bytes.each_slice(2).to_a
+      end.flatten(1)[url_entity['offset'], url_entity['offset'] + url_entity['length']].flatten.pack('C*')
+    end
   end
 end

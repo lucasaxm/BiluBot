@@ -34,6 +34,9 @@ module GalleryDLConfig
         module: 'yt_dlp',
         Facebook: {
           'cmdline-args': "--add-header 'cookie: #{ENV['BILU_FACEBOOK_COOKIES']}'"
+        },
+        Steam: {
+          filename: '{id}.{extension}'
         }
       }
     },

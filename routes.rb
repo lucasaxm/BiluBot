@@ -18,7 +18,7 @@ module Routes
       !is_callback_query?(message) && (!message.photo.empty? || !message.sticker.nil? || (!message.document.nil? && message.document.mime_type.start_with?('image/')))
     end
 
-    def is_link?(message)
+    def has_link?(message)
       !is_callback_query?(message) && !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| entity.type == 'url' }
     end
 
@@ -48,25 +48,25 @@ module Routes
       #    action: :delete_reply
       #},
       lambda do |message|
-        regex_match message, %r{^callback /((r)|(reddit)) \w+$}i
+        regex_match message, %r{^callback /((r)|(reddit))(?:@((?!^$)([^\s]))*)? \w+$}i
       end => {
           controller: RedditController,
           action: :get_media_from_subreddit_callback
       },
       lambda do |message|
-        regex_match message, %r{^/((usr)|(unbansubreddit)) \w+$}i
+        regex_match message, %r{^/((usr)|(unbansubreddit))(?:@((?!^$)([^\s]))*)? \w+$}i
       end => {
         controller: RedditController,
         action: :unban_subreddit
       },
       lambda do |message|
-        regex_match message, %r{^/((bsr)|(bansubreddit)) \w+$}i
+        regex_match message, %r{^/((bsr)|(bansubreddit))(?:@((?!^$)([^\s]))*)? \w+$}i
       end => {
         controller: RedditController,
         action: :ban_subreddit
       },
       lambda do |message|
-        regex_match message, %r{^\/weather [[:alpha:]]+( [[:alpha:]]+)*$}i
+        regex_match message, %r{^\/weather(?:@((?!^$)([^\s]))*)? [[:alpha:]]+( [[:alpha:]]+)*$}i
       end => {
           controller: ForecastController,
           action: :get_current_weather
@@ -78,43 +78,43 @@ module Routes
           action: :get_media_from_url
       },
       lambda do |message|
-        regex_match message, %r{^\/s\/.*\/.*$}i
-      end => {
-          controller: MiscController,
-          action: :delete_message
-      },
-      lambda do |message|
-        regex_match message, %r{^\/spam$}i
+        regex_match message, %r{^\/spam(?:@((?!^$)([^\s]))*)?$}i
       end => {
           controller: MiscController,
           action: :spam
       },
       lambda do |message|
-        regex_match message, %r{^\/spam .*$}i
+        regex_match message, %r{^\/spam(?:@((?!^$)([^\s]))*)? .*$}i
       end => {
           controller: MiscController,
           action: :spam
       },
       lambda do |message|
-        regex_match message, %r{^\/bilov.*$}i
+        regex_match message, %r{^\/print(?:@((?!^$)([^\s]))*)?$}i
+      end => {
+          controller: ScreenshotService,
+          action: :take_screenshot
+      },
+      lambda do |message|
+        regex_match message, %r{^\/print(?:@((?!^$)([^\s]))*)? .*$}i
+      end => {
+          controller: ScreenshotService,
+          action: :take_screenshot
+      },
+      lambda do |message|
+        regex_match message, %r{^\/msg(?:all)?(?:@((?!^$)([^\s]))*)?$}i
       end => {
           controller: MiscController,
           action: :delete_message
       },
       lambda do |message|
-        regex_match message, %r{^\/distort$}i
+        regex_match message, %r{^\/distort(?:@((?!^$)([^\s]))*)?$}i
       end => {
           controller: ImageController,
           action: :distort_reply
       },
       lambda do |message|
-        regex_match message, %r{^\/distort@[^@]*$}i
-      end => {
-          controller: ImageController,
-          action: :distort_reply
-      },
-      lambda do |message|
-        regex_match message, %r{^\/d$}i
+        regex_match message, %r{^\/d(?:@((?!^$)([^\s]))*)?$}i
       end => {
           controller: ImageController,
           action: :distort_reply
@@ -132,22 +132,22 @@ module Routes
           action: :deepfry_reply
       },
       lambda do |message|
-        regex_match message, %r{^\/fry$}i
+        regex_match message, %r{^\/fry(?:@((?!^$)([^\s]))*)?$}i
       end => {
         controller: ImageController,
         action: :deepfry_reply
       },
       lambda do |message|
         # percentage integer
-        probability = 1
+        probability = 3
         return false unless is_image? message
-        rand(100) < probability
+        rand(1000) < probability
       end => {
           controller: ImageController,
           action: :deepfry
       },
       lambda do |message|
-        is_link?(message) && !is_reddit_link?(message)
+        has_link?(message) && !is_reddit_link?(message)
       end => {
           controller: GalleryDLController,
           action: :send_media
@@ -165,13 +165,13 @@ module Routes
           action: :search_and_send_as_video
       },
       lambda do |message|
-        regex_match message, %r{^\/keyboard .*$}i
+        regex_match message, %r{^\/keyboard(?:@((?!^$)([^\s]))*)? .*$}i
       end => {
         controller: MiscController,
         action: :keyboard
       },
       lambda do |message|
-        regex_match message, %r{^\/close$}i
+        regex_match message, %r{^\/close(?:@((?!^$)([^\s]))*)?$}i
       end => {
         controller: MiscController,
         action: :close_keyboard
