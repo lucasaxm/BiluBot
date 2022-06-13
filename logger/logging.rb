@@ -1,4 +1,4 @@
-require_relative 'logger4_telegram'
+require_relative "#{__dir__}/logger4_telegram"
 
 module Logging
   class << self

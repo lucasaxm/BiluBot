@@ -1,4 +1,4 @@
-require_relative '../logger/logging'
+require_relative "#{__dir__}/../logger/logging"
 require 'rmagick'
 require 'fastimage'
 

@@ -1,5 +1,5 @@
-require_relative '../logger/logging'
-require_relative '../config/forecast_config'
+require_relative "#{__dir__}/../logger/logging"
+require_relative "#{__dir__}/../config/forecast_config"
 require 'forecast_io'
 
 class ForecastService

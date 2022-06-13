@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-require_relative '../logger/logging'
+require_relative "#{__dir__}/../logger/logging"
 require 'active_record'
 require 'pg'
 

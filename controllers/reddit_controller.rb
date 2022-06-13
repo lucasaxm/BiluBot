@@ -1,6 +1,6 @@
-require_relative '../logger/logging'
-require_relative '../config/reddit_config'
-require_relative '../services/reddit_service'
+require_relative "#{__dir__}/../logger/logging"
+require_relative "#{__dir__}/../config/reddit_config"
+require_relative "#{__dir__}/../services/reddit_service"
 
 ##
 # Controller for RedditService

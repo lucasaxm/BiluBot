@@ -1,5 +1,5 @@
-require_relative '../logger/logging'
-require_relative '../services/forecast_service'
+require_relative "#{__dir__}/../logger/logging"
+require_relative "#{__dir__}/../services/forecast_service"
 
 ##
 # Controller for ForecastService

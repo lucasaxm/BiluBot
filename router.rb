@@ -1,7 +1,7 @@
-require_relative 'logger/logging'
-require_relative 'routes'
-require_relative 'models/chat'
-Dir['controllers/*.rb'].each { |file| require_relative file }
+require_relative "#{__dir__}/logger/logging"
+require_relative "#{__dir__}/routes"
+require_relative "#{__dir__}/models/chat"
+Dir["#{__dir__}/controllers/*.rb"].each { |file| require_relative file }
 
 module Router
   include Logging

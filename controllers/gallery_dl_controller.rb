@@ -1,5 +1,5 @@
-require_relative '../logger/logging'
-require_relative '../services/gallery_dl_service'
+require_relative "#{__dir__}/../logger/logging"
+require_relative "#{__dir__}/../services/gallery_dl_service"
 
 class GalleryDLController
   include Logging

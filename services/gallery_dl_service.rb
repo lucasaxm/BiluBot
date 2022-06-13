@@ -1,8 +1,8 @@
 require 'telegram/bot'
 require 'timeout'
-require_relative '../config/gallery_dl_config'
-require_relative '../lib/gallery_dl'
-require_relative '../logger/logging'
+require_relative "#{__dir__}/../config/gallery_dl_config"
+require_relative "#{__dir__}/../lib/gallery_dl"
+require_relative "#{__dir__}/../logger/logging"
 
 class GalleryDLService
   include Logging
@@ -11,7 +11,8 @@ class GalleryDLService
     GalleryDLConfig.save_config
     @bilu = bilu
     @message = message
-    @dir = './gallery-dl'
+    @dir = "#{__dir__}/#{Thread.current.object_id}"
+    @timeout = 300
     @uploads_chat_id = ENV['BILU_UPLOADS_TELEGRAM_ID']
     @reddit_post = reddit_post
   end
@@ -20,13 +21,13 @@ class GalleryDLService
   def search_and_send format
     search_query = "ytsearch:#{@message.text.split(' ')[1..-1].join(' ')}"
     logger.info "Searching for '#{search_query}' and sending as #{format}"
-    options = {}
+    options = {
+      destination: @dir
+    }
     if format == 'audio'
       options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a]'
     end
-    result = Timeout.timeout(300, nil, "GalleryDL.download timeout. url=[#{search_query}] options=[#{options}]") do
-        GalleryDL.download search_query, options
-    end
+    result = GalleryDL.download search_query, @timeout, options
     if result.nil? || result.information.nil? || result.information.any? { |r| r[:local_path].nil? }
       logger.error 'Failed to download media using gallery-dl'
       @bilu.bot.api.send_message(
@@ -39,23 +40,11 @@ class GalleryDLService
       return
     end
     send_gallerydl_media(result)
-  rescue Terrapin::ExitStatusError => e
-    extractor_errors = e.message.split("\n").select { |x| x['[error]'] }
-
-    error_msg = case extractor_errors.size
-                when 0
-                  e.message
-                when 1
-                  extractor_errors.first
-                else
-                  extractor_errors.join("\n")
-                end
-
-    @bilu.log_to_channel(error_msg, @message)
-    raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
+  rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
+    @bilu.log_to_channel(e.message, @message)
+    raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
   ensure
-    logger.warn "killing gallery-dl #{`pkill -e gallery-dl`}"
-    logger.warn "cleaning gallery-dl local dir #{`rm -rf gallery-dl`}"
+    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`}"
   end
 
   def send_media
@@ -77,21 +66,21 @@ class GalleryDLService
   end
 
   def send_media_from_url url
-    options = {}
-    result = Timeout.timeout(60, nil, "GalleryDL.download timeout. url=[#{url}] options=[#{options}]") do
-      if @reddit_post.nil?
-        logger.info "Trying to send #{url} as media"
-        GalleryDL.download url, options
+    options = {
+      destination: @dir
+    }
+    result = if @reddit_post.nil?
+      logger.info "Trying to send #{url} as media"
+      GalleryDL.download url, @timeout, options
+    else
+      permalink = "reddit.com#{@reddit_post.permalink}"
+      logger.info "Trying to send #{permalink} as media"
+      permalink_result = GalleryDL.download permalink, @timeout, options
+      if permalink_result.information.empty? && !@reddit_post.url.nil?
+        logger.info "Trying to send #{@reddit_post.url} as media"
+        GalleryDL.download @reddit_post.url, @timeout, options
       else
-        permalink = "reddit.com#{@reddit_post.permalink}"
-        logger.info "Trying to send #{permalink} as media"
-        permalink_result = GalleryDL.download permalink, options
-        if permalink_result.information.empty? && !@reddit_post.url.nil?
-          logger.info "Trying to send #{@reddit_post.url} as media"
-          GalleryDL.download @reddit_post.url, options
-        else
-          permalink_result
-        end
+        permalink_result
       end
     end
     if result.nil? || result.information.nil? || result.information.any? { |r| r[:local_path].nil? }
@@ -101,23 +90,11 @@ class GalleryDLService
       return
     end
     send_gallerydl_media(result)
-  rescue Terrapin::ExitStatusError => e
-    extractor_errors = e.message.split("\n").select { |x| x['[error]'] }
-
-    error_msg = case extractor_errors.size
-                when 0
-                  e.message
-                when 1
-                  extractor_errors.first
-                else
-                  extractor_errors.join("\n")
-                end
-
-    @bilu.log_to_channel(error_msg, @message)
-    raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
+  rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
+    @bilu.log_to_channel(e.message, @message)
+    raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
   ensure
-    logger.warn "killing gallery-dl #{`pkill -e gallery-dl`}"
-    logger.warn "cleaning gallery-dl local dir #{`rm -rf gallery-dl`}"
+    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`}"
   end
 
   def build_caption(information)
@@ -204,6 +181,7 @@ class GalleryDLService
       type => upload
     }
     payload.merge! options
+    logger.debug "uploading media to telegram. payload:#{payload.to_json}"
     response = @bilu.bot.api.send "send_#{type}", payload
     if response['result'][type].is_a? Array
       response['result'][type].last['file_id']

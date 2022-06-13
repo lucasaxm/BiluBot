@@ -1,5 +1,5 @@
 require 'dotenv'
-Dotenv.load('tokens.env')
+Dotenv.load("#{__dir__}/tokens.env")
 require_relative 'bot'
 
 module Server
@@ -24,20 +24,21 @@ module Server
     end
 
     pool.post do
-      Timeout.timeout(300, nil, 'Timeout processing message.') {
-        begin
+      begin
+        Timeout.timeout(300, nil, 'Timeout processing message.') do
           bot.process_update message
-        rescue StandardError => e
-          logger.error("Exception Class: [#{e.class.name}]")
-          logger.error("Exception Message: [#{e.message}']")
-          unless bot.nil?
-            answer = "Exception Class: [#{e.class.name}]\nException Message: [#{e.message}']."
-            logger.error("Message=[#{answer}]")
-            bot.log_to_channel(answer, message)
-          end
-          # end
         end
-      }
+      rescue => e
+        logger.error("Exception Class: [#{e.class.name}]")
+        logger.error("Exception Message: [#{e.message}']")
+        logger.error e.backtrace.join "\n"
+        unless bot.nil?
+          answer = "Exception Class: [#{e.class.name}]\nException Message: [#{e.message}']\nBacktrace first row: [#{e.backtrace.first}]"
+          logger.error("Message=[#{answer}]")
+          bot.log_to_channel(answer, message)
+        end
+        # end
+      end
     end
   end
 end

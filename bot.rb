@@ -1,7 +1,7 @@
-require_relative 'domain/request_weather'
-require_relative 'logger/logging'
-require_relative 'router'
-require_relative 'db/bilu_schema'
+require_relative "#{__dir__}/domain/request_weather"
+require_relative "#{__dir__}/logger/logging"
+require_relative "#{__dir__}/router"
+require_relative "#{__dir__}/db/bilu_schema"
 require 'telegram/bot'
 require 'redd'
 require 'forecast_io'

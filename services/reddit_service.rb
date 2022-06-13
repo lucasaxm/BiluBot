@@ -3,14 +3,14 @@
 require 'open-uri'
 require 'telegram/bot'
 require 'nokogiri'
-require_relative '../lib/gallery_dl'
-require_relative '../logger/logging'
-require_relative '../config/reddit_config'
-require_relative '../models/reddit_post'
-require_relative '../models/subreddit'
-require_relative '../models/banned_subreddit'
-require_relative '../models/chat'
-require_relative 'screenshot_service'
+require_relative "#{__dir__}/../lib/gallery_dl"
+require_relative "#{__dir__}/../logger/logging"
+require_relative "#{__dir__}/../config/reddit_config"
+require_relative "#{__dir__}/../models/reddit_post"
+require_relative "#{__dir__}/../models/subreddit"
+require_relative "#{__dir__}/../models/banned_subreddit"
+require_relative "#{__dir__}/../models/chat"
+require_relative "#{__dir__}/screenshot_service"
 
 ##
 # Class that holds all logic related to Reddit

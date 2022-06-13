@@ -1,5 +1,4 @@
-Dir['controllers/*.rb'].each { |file| require_relative file }
-
+Dir["#{__dir__}/controllers/*.rb"].each { |file| require_relative file }
 module Routes
   class << self
     attr_reader :message_map
@@ -175,6 +174,12 @@ module Routes
       end => {
         controller: MiscController,
         action: :close_keyboard
+      },
+      lambda do |message|
+        regex_match message, %r{^\/acorda(?:@((?!^$)([^\s]))*)? [[:alpha:]]+$}i
+      end => {
+          controller: MiscController,
+          action: :kill_process
       }
 
   }.freeze

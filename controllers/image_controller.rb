@@ -1,5 +1,5 @@
-require_relative '../logger/logging'
-require_relative '../services/image_service'
+require_relative "#{__dir__}/../logger/logging"
+require_relative "#{__dir__}/../services/image_service"
 
 class ImageController
   include Logging

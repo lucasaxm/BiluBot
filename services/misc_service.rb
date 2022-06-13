@@ -1,4 +1,4 @@
-require_relative '../logger/logging'
+require_relative "#{__dir__}/../logger/logging"
 require 'telegram/bot'
 
 class MiscService
@@ -7,6 +7,56 @@ class MiscService
   def initialize(bilu, message)
     @bilu = bilu
     @message = message
+  end
+
+  def kill_process
+    text = @message.text
+    msg_words = text.split ' '
+    return unless msg_words.size == 2
+
+    bot_name = msg_words[1].downcase
+    command = nil
+    case bot_name
+    when 'bilov'
+      command = 'java -jar /home/pi/bilov/markov-telegram-bot-0.2.3.jar'
+    when 'djbilu'
+      command = 'evobot/index.js'
+    when 'shellbot'
+      command = 'shell-bot/server.js'
+    else
+      @bilu.bot.api.send_message(
+        chat_id: @message.chat.id,
+        reply_to_message_id: @message.message_id,
+        parse_mode: 'MarkdownV2',
+        text: "`/acorda bilov` ou `/acorda djbilu`",
+        allow_sending_without_reply: true
+      )
+    end
+
+    return if command.nil?
+
+
+    logger.info "restarting #{bot_name}"
+    old_pid = `pgrep -fa '#{command}' | grep -v 'grep' | cut -d " " -f1`.to_i
+    `pkill -f '#{command}'`
+    sleep 2
+    new_pid = `pgrep -fa '#{command}' | grep -v 'grep' | cut -d " " -f1`.to_i
+    logger.info "old_pid=[#{old_pid}] new_pid=[#{new_pid}]"
+    if new_pid == 0 || (old_pid == new_pid)
+      @bilu.bot.api.send_message(
+        chat_id: @message.chat.id,
+        reply_to_message_id: @message.message_id,
+        text: "failed to start bot",
+        allow_sending_without_reply: true
+      )
+    else old_pid == new_pid
+      @bilu.bot.api.send_message(
+        chat_id: @message.chat.id,
+        reply_to_message_id: @message.message_id,
+        text: "bot started",
+        allow_sending_without_reply: true
+      )
+    end
   end
 
   def delete_reply

@@ -1,5 +1,5 @@
-require_relative '../logger/logging'
-require_relative '../services/misc_service'
+require_relative "#{__dir__}/../logger/logging"
+require_relative "#{__dir__}/../services/misc_service"
 
 class MiscController
   include Logging
@@ -27,4 +27,9 @@ class MiscController
   def close_keyboard(chat)
     @service.close_keyboard
   end
+
+  def kill_process(chat)
+    @service.kill_process
+  end
+  
 end
