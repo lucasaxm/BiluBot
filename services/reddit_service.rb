@@ -2,7 +2,6 @@
 
 require 'open-uri'
 require 'telegram/bot'
-require 'nokogiri'
 require_relative "#{__dir__}/../lib/gallery_dl"
 require_relative "#{__dir__}/../logger/logging"
 require_relative "#{__dir__}/../config/reddit_config"
