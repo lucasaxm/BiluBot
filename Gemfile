@@ -16,9 +16,11 @@ gem 'fastimage'
 gem 'fileutils'
 gem 'forecast_io'
 gem 'pg', '>= 0.19.0.beta'
-gem 'redd', '~> 0.8.8'
+gem 'redd', git: 'https://github.com/adsteel/redd'
 gem 'rmagick'
 gem 'telegram-bot-ruby', '~> 0.19.2'
 gem 'timezone', '~> 1.0'
 gem 'streamio-ffmpeg'
 gem "terrapin", "~> 0.6.0"
+
+gem "mime-types", "~> 3.4"

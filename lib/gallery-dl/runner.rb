@@ -3,6 +3,7 @@ require_relative "#{__dir__}/errors"
 module GalleryDL
   # Utility class for running and managing gallery-dl
   class Runner
+    include Logging
     include GalleryDL::Support
 
     # @return [String] URL to download
@@ -32,7 +33,6 @@ module GalleryDL
     #
     # @return [String] usable executable path for gallery-dl
     def executable_path
-      byebug
       @executable_path ||= usable_executable_path_for(@executable)
     end
 
@@ -69,23 +69,26 @@ module GalleryDL
       # end
       command = to_command
       processes_dir = 'processes'
+      lockfile = "#{__dir__}/#{processes_dir}/#{Thread.current.object_id}.lock"
+      system "mkdir -p #{__dir__}/#{processes_dir}"
+      system "touch #{lockfile}"
       child_pid = fork do
         Process.setsid
 
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] command: #{command}."
-        system "mkdir -p #{__dir__}/#{processes_dir}"
         system "#{command} > #{__dir__}/#{processes_dir}/#{Process.pid}.out 2> #{__dir__}/#{processes_dir}/#{Process.pid}.error"
+        logger.info "gallery-dl command completed, removing lockfile. #{`rm -fv #{lockfile}`.inspect}"
       end
       # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] waiting for process #{child_pid} to finish."
     
       begin
         Timeout::timeout(@timeout, nil, "Command #{command} run timeout. Killing process #{child_pid}.") do
-          # puts `ps --pid #{child_pid} -o state | tail -1`
-          while `ps --pid #{child_pid} -o state | tail -1`.chomp == 'S'
+          # puts `ps --pid #{child_pid} -o state | tail -1` bnmʋ
+          while File.exists?(lockfile)
             # puts `ps --pid #{child_pid} -o state | tail -1`
           end
         end
-        error = File.read "#{__dir__}/#{processes_dir}/#{child_pid}.error"
+        error = `grep -v '[warning]' '#{__dir__}/#{processes_dir}/#{child_pid}.error'`
         unless error.empty?
           raise GalleryDL::GalleryDlError, error
         end
@@ -100,7 +103,8 @@ module GalleryDL
         raise GalleryDL::GalleryDlTimeout
       ensure
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] deleting #{child_pid}.*"
-        system "rm #{__dir__}/#{processes_dir}/#{child_pid}.*"
+        logger.debug "cleaning process dir #{`rm -fv #{__dir__}/#{processes_dir}/#{child_pid}.*`.inspect}"
+        logger.debug "cleaning lockfile #{`rm -fv #{lockfile}`.inspect}"
       end
     end
 

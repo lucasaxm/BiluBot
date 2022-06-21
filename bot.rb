@@ -1,3 +1,5 @@
+require "bundler" 
+Bundler.setup(:default)
 require_relative "#{__dir__}/domain/request_weather"
 require_relative "#{__dir__}/logger/logging"
 require_relative "#{__dir__}/router"

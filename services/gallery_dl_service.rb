@@ -3,7 +3,7 @@ require 'timeout'
 require_relative "#{__dir__}/../config/gallery_dl_config"
 require_relative "#{__dir__}/../lib/gallery_dl"
 require_relative "#{__dir__}/../logger/logging"
-
+require 'mime/types'
 class GalleryDLService
   include Logging
 
@@ -25,10 +25,10 @@ class GalleryDLService
       destination: @dir
     }
     if format == 'audio'
-      options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a]'
+      options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a][filesize<50M]/bestaudio[ext=m4a][filesize_approx<50M]'
     end
     result = GalleryDL.download search_query, @timeout, options
-    if result.nil? || result.information.nil? || result.information.any? { |r| r[:local_path].nil? }
+    if ((result.nil?) || (result.information.nil?) || (result.information.any? { |r| r.nil? || r[:local_path].nil? }))
       logger.error 'Failed to download media using gallery-dl'
       @bilu.bot.api.send_message(
         chat_id: @message.chat.id,
@@ -39,12 +39,13 @@ class GalleryDLService
 
       return
     end
+    logger.info "#{result.information.size} medias found from #{search_query}"
     send_gallerydl_media(result)
   rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
     @bilu.log_to_channel(e.message, @message)
     raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
   ensure
-    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`}"
+    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`.inspect}"
   end
 
   def send_media
@@ -58,11 +59,17 @@ class GalleryDLService
       begin
         send_media_from_url url
       rescue Telegram::Bot::Exceptions::Base => e
-        errors << url
-        continue
+        errors << {
+          url: url,
+          exception: e
+        }
+        next
       end
     end
-    raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{errors}" unless (@reddit_post.nil? || errors.empty?)
+#    if ((!errors.empty?) && (@reddit_post.nil?))
+    if !errors.empty?
+      raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{errors}" 
+    end
   end
 
   def send_media_from_url url
@@ -83,18 +90,19 @@ class GalleryDLService
         permalink_result
       end
     end
-    if result.nil? || result.information.nil? || result.information.any? { |r| r[:local_path].nil? }
+    if ((result.nil?) || (result.information.nil?) || (result.information.any? { |r| r.nil? || r[:local_path].nil? }))
       logger.error 'Failed to download media using gallery-dl'
       raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
 
       return
     end
+    logger.info "#{result.information.size} medias found from #{url}"
     send_gallerydl_media(result)
   rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
     @bilu.log_to_channel(e.message, @message)
     raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
   ensure
-    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`}"
+    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`.inspect}"
   end
 
   def build_caption(information)
@@ -132,7 +140,7 @@ class GalleryDLService
       if @reddit_post.nil?
         information[:category]
       else
-        "#{@reddit_post.over_18 ? "\u{1F51E} NSFW " : ''}#{@reddit_post.spoiler ? "\u{26A0} SPOILER" : ''}\n#{@reddit_post.title}"
+        "#{@reddit_post.over_18? ? "\u{1F51E} NSFW " : ''}#{@reddit_post.spoiler? ? "\u{26A0} SPOILER" : ''}\n#{@reddit_post.title}"
       end
     end
     if (!full_caption.nil?) && (full_caption.length > 150)
@@ -143,7 +151,6 @@ class GalleryDLService
   end
 
   def send_gallerydl_media(result)
-    logger.info "#{result.information.size} medias found from #{@message.text}"
     first_caption = nil
     messages_sent = []
     result.information.each_slice(10) do |information_group|
@@ -183,6 +190,8 @@ class GalleryDLService
     payload.merge! options
     logger.debug "uploading media to telegram. payload:#{payload.to_json}"
     response = @bilu.bot.api.send "send_#{type}", payload
+    response_type = (['audio','document','photo','sticker','video','video_note','voice'] & response['result'].keys)
+    type = response_type.first unless response_type.empty?
     if response['result'][type].is_a? Array
       response['result'][type].last['file_id']
     else
@@ -239,9 +248,15 @@ class GalleryDLService
     filepath = information[:local_path]
     caption = build_caption(information)
     upload = Faraday::UploadIO.new(filepath, 'video/mp4')
+    options = {}
+    thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
+    if File.exists? thumb
+      options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
+    end
+    options['duration'] = information[:duration].to_i unless information[:duration].nil?
     media = {
       type: 'video',
-      media: upload_to_telegram('video', upload),
+      media: upload_to_telegram('video', upload, options),
       supports_streaming: true
     }
     media[:caption] = caption unless caption.nil?
@@ -254,6 +269,10 @@ class GalleryDLService
 
     upload = Faraday::UploadIO.new(filepath, 'audio/m4a')
     options = {}
+    thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
+    if File.exists? thumb
+      options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
+    end
     if (information[:category].downcase == 'ytdl') && (['youtube','youtubesearch'].include? information[:subcategory].downcase)
       options['performer'] = information[:channel]
       options['title'] = information[:title]
@@ -271,21 +290,29 @@ class GalleryDLService
 
   # returns audio, video or image
   def get_file_type(path)
-    ffmpeg_movie = FFMPEG::Movie.new(path)
-    return 'video' unless ffmpeg_movie.frame_rate.nil?
+    #puts "mime type: #{MIME::Types.type_for(path)}"
+    #puts "mime type filtered: #{MIME::Types.type_for(path).group_by{|x| x.try(:media_type)}.max_by{|x| x.last.length}.first}"
+    MIME::Types.type_for(path).group_by{|x| x.try(:media_type)}.max_by{|x| x.last.length}.first
+    #ffmpeg_movie = FFMPEG::Movie.new(path)
+    #return 'video' unless ffmpeg_movie.frame_rate.nil?
 
-    return 'audio' unless ffmpeg_movie.audio_codec.nil?
+    #return 'audio' unless ffmpeg_movie.audio_codec.nil?
 
-    return 'image'
+    #return 'image'
   end
 
   def extract_urls(msg)
     msg['entities'].select do |entity|
-      entity['type'] == 'url'
+      entity['type'] == 'url' || entity['type'] == 'text_link'
     end.map do |url_entity|
-      msg['text'].chars.map do |x|
-        x.bytes.each_slice(2).to_a
-      end.flatten(1)[url_entity['offset'], url_entity['offset'] + url_entity['length']].flatten.pack('C*')
+      if url_entity['type'] == 'url'
+        msg['text'].chars.map do |x|
+          x.bytes.each_slice(2).to_a
+        end.flatten(1)[url_entity['offset'], url_entity['offset'] + url_entity['length']].flatten.pack('C*')
+      else # text_link
+        url_entity['url']
+      end
     end
   end
+
 end

@@ -18,7 +18,7 @@ class MiscService
     command = nil
     case bot_name
     when 'bilov'
-      command = 'java -jar /home/pi/bilov/markov-telegram-bot-0.2.3.jar'
+      command = 'markov-telegram-bot-0.2.3.jar'
     when 'djbilu'
       command = 'evobot/index.js'
     when 'shellbot'

@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-
 require 'open-uri'
 require 'telegram/bot'
 require_relative "#{__dir__}/../lib/gallery_dl"
@@ -126,14 +125,14 @@ class RedditService
       )
       # hot_posts = get_subreddit_hot_media_posts(subreddit_name)
       hot_posts = get_subreddit_hot_posts(subreddit_name)
-    rescue Redd::NotFound, JSON::ParserError => e
+    rescue Redd::Errors::NotFound, JSON::ParserError => e
       answer = "subreddit #{subreddit_name} not found."
       logger.error(answer)
       logger.error("Exception Class: [#{e.class.name}]")
       logger.error("Exception Message: [#{e.message}']")
       @bilu.reply_with_text(answer, @message)
       return
-    rescue Redd::InvalidAccess => e
+    rescue Redd::Errors::InvalidAccess => e
       error_count += 1
       @reddit_session.client.refresh
       if error_count < 5
@@ -142,7 +141,7 @@ class RedditService
         retry
       end
       return
-    rescue Redd::Forbidden => e
+    rescue Redd::Errors::Forbidden => e
       answer = "Access to this subreddit is forbidden. Reason: #{e.message.split[1]}"
       @bilu.reply_with_text(answer, @message)
       return
@@ -159,7 +158,7 @@ class RedditService
       if reddit_post.new_record?
         reddit_post.assign_attributes(title: hot_post.title,
                                       score: hot_post.score,
-                                      nsfw: hot_post.over_18,
+                                      nsfw: hot_post.over_18?,
                                       url: hot_post.url)
         reddit_post.subreddit = subreddit_db
       elsif reddit_post.chats.include? chat
@@ -197,7 +196,7 @@ class RedditService
 
     post_id = "t3_#{words[comments_index + 1]}"
     post = reddit_post_from_id(post_id)
-    if !chat.nsfw? && post.over_18
+    if !chat.nsfw? && post.over_18?
       answer = 'NSFW posts are banned.'
       @bilu.reply_with_text(answer, @message)
       return
@@ -210,7 +209,7 @@ class RedditService
     Telegram::Bot::Types::InlineKeyboardMarkup.new(
       inline_keyboard: [[
         Telegram::Bot::Types::InlineKeyboardButton.new(
-          text: "#{post.num_comments} Comments",
+          text: "#{post.comment_count} Comments",
           url: "https://www.reddit.com#{post.permalink}"
         ),
         Telegram::Bot::Types::InlineKeyboardButton.new(
@@ -228,12 +227,12 @@ class RedditService
     subreddit_db = Subreddit.find_or_initialize_by(reddit_id: subreddit.id)
     if subreddit_db.new_record?
       subreddit_db.name = subreddit_name
-      subreddit_db.nsfw = subreddit.over18
+      subreddit_db.nsfw = subreddit.over_18?
       subreddit_db.save
       logger.info("subreddit #{subreddit_db.name} saved to database")
     end
     subreddit_db
-  rescue Redd::NotFound, JSON::ParserError => e
+  rescue Redd::Errors::NotFound, JSON::ParserError => e
     answer = "subreddit #{subreddit_name} not found."
     logger.error(answer)
     logger.error("Exception Class: [#{e.class.name}]")
@@ -248,31 +247,29 @@ class RedditService
 
   def send_media(post)
     logger.debug("Post: score=[#{post.score}] title=[#{post.title}] url=[#{post.url}]")
-    # raise Telegram::Bot::Exceptions::Base, 'Self post' if post.is_self
+    # raise Telegram::Bot::Exceptions::Base, 'Self post' if post.self?
 
     url_extension = post.url.split('.').last
-    if post.is_self
+    if post.self?
       send_screenshot(post)
-    elsif %w[gif gifv].include?(url_extension)
-      send_gifv(post)
-    elsif url_extension == 'mp4'
-      send_mp4(post)
-    elsif post.url.include? 'gfycat.com'
-      gif_name = post.url.split('/').last.split('-').first
-      new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
-      send_mp4(post, new_url)
-    elsif post.is_reddit_media_domain && post.is_video
-      result = GalleryDL.download "reddit.com#{post.permalink}"
-      filepath = result.information.first[:local_path]
-      send_local_mp4(post, filepath)
-    elsif (post.instance_variable_get :@attributes)[:is_gallery]
-      send_gallery(post)
+    #elsif %w[gif gifv].include?(url_extension)
+    #  send_gifv(post)
+    #elsif url_extension == 'mp4'
+    #  send_mp4(post)
+    #elsif post.url.include? 'gfycat.com'
+    #  gif_name = post.url.split('/').last.split('-').first
+    #  new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
+    #  send_mp4(post, new_url)
+    #elsif !post.media.nil? && (post.media.keys.include? :reddit_video)
+    #  result = GalleryDL.download "reddit.com#{post.permalink}"
+    #  filepath = result.information.first[:local_path]
+    #  send_local_mp4(post, filepath)
+    #elsif (post.instance_variable_get :@attributes)[:is_gallery]
+    #  send_gallery(post)
     else
       begin
         gallery_dl_service = GalleryDLService.new(@bilu, @message, post)
-        Timeout.timeout(30, Telegram::Bot::Exceptions::Base, 'GalleryDl Service Timeout.') do
-          gallery_dl_service.send_media
-        end
+        gallery_dl_service.send_media
       rescue Telegram::Bot::Exceptions::Base => e
         send_screenshot(post)
       end
@@ -307,7 +304,7 @@ class RedditService
   end
 
   def reddit_selfpost_description(post)
-    if post.is_self
+    if post.self?
       post.selftext.empty? ? post.title : post.selftext
     else
       ''
@@ -418,7 +415,7 @@ class RedditService
   end
 
   def reddit_post_caption(post)
-    caption = "#{post.over_18 ? "\u{1F51E} NSFW " : ''}#{post.spoiler ? "\u{26A0} SPOILER" : ''}\n#{post.title}"
+    caption = "#{post.over_18? ? "\u{1F51E} NSFW " : ''}#{post.spoiler? ? "\u{26A0} SPOILER" : ''}\n#{post.title}"
     unless @callback.nil?
       caption += "\n\n[post request by #{@callback.from.username.nil? ? @callback.from.first_name : "@#{@callback.from.username}"}]"
     end
@@ -433,7 +430,7 @@ class RedditService
   end
 
   def send_screenshot(post)
-    style = post.spoiler ? 'i' : 'www'
+    style = post.spoiler? ? 'i' : 'www'
     permalink = "https://#{style}.reddit.com#{post.permalink}"
     logger.debug("START - Sending #{permalink} screenshot as photo through telegram API.")
     @bilu.bot.api.send_chat_action(
@@ -498,7 +495,7 @@ class RedditService
   end
 
   def get_subreddit_hot_posts(subreddit)
-    @reddit_session.subreddit(subreddit).hot.to_a.select{|h| !h.stickied }
+    @reddit_session.subreddit(subreddit).hot.to_a.select{|h| !h.stickied? }
   end
 
   def send_help_message

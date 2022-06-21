@@ -18,7 +18,7 @@ module Routes
     end
 
     def has_link?(message)
-      !is_callback_query?(message) && !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| entity.type == 'url' }
+      !is_callback_query?(message) && !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| ['url','text_link'].include? entity.type }
     end
 
     def is_reddit_link?(message)
