@@ -60,23 +60,6 @@ class ImageService
     deepfry @message.reply_to_message
   end
 
-  def send_photo_from_instagram(message)
-    doc = Nokogiri::HTML(open(message.text))
-    image_array = doc.xpath("//meta[@property='og:image']/@content")
-    if image_array.size != 1
-      logger.warn "Expected 1 image but got #{image_array.size}."
-      return
-    end
-    url = image_array.first.value
-    description_array = doc.xpath("//meta[@property='og:description']/@content")
-    if description_array.size != 1
-      logger.warn "Expected 1 image description but got #{description_array.size}."
-      return
-    end
-    description = description_array.first.value
-    send_photo(message, url, description)
-  end
-
   def deepfry(m=@message)
     file_path = download_image m
 
