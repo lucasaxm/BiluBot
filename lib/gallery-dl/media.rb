@@ -2,16 +2,16 @@ module GalleryDL
   # Video model for using and downloading a single media.
   class Media < Runner
     class << self
-      # Instantiate a new Video model and download the media
+      # Instantiate a new Media model and download the media
       #
-      #   YoutubeDL.download 'https://www.youtube.com/watch?v=KLRDLIIl8bA' # => #<YoutubeDL::Video:0x00000000000000>
-      #   YoutubeDL.get 'https://www.youtube.com/watch?v=ia1diPnNBgU', extract_audio: true, audio_quality: 0
+      #   GalleryDL.download 'https://www.youtube.com/watch?v=KLRDLIIl8bA' # => #<GalleryDL::Media:0x00000000000000>
+      #   GalleryDL.get 'https://www.youtube.com/watch?v=ia1diPnNBgU', extract_audio: true, audio_quality: 0
       #
       # @param url [String] URL to use and download
       # @param options [Hash] Options to pass in
       # @return [GalleryDL::Media] new Video model
-      def download(url, options = {})
-        media = new(url, options)
+      def download(url, timeout=30, options = {})
+        media = new(url, timeout, options)
         media.download
         media
       end
@@ -26,10 +26,11 @@ module GalleryDL
     #
     # @param url [String] URL to initialize with
     # @param options [Hash] Options to populate the everything with
-    def initialize(url, options = {}, information = nil)
+    def initialize(url, timeout=30, options = {}, information = nil)
       @url = url
       @options = GalleryDL::Options.new(options.merge(default_options))
       @options.banned_keys = banned_keys
+      @timeout = timeout
       @information = information unless information.nil?
     end
 
@@ -38,7 +39,7 @@ module GalleryDL
       raise ArgumentError.new('url cannot be nil') if @url.nil?
       raise ArgumentError.new('url cannot be empty') if @url.empty?
 
-      set_information_from_json(GalleryDL::Runner.new(url, runner_options).run)
+      set_information_from_json(GalleryDL::Runner.new(url, @timeout, runner_options).run)
     end
 
     alias_method :get, :download

@@ -20,7 +20,7 @@ class Logger4Telegram < Logger
     self.level = level
     self.datetime_format = @date_format
     self.formatter = proc {|severity, datetime, progname, msg|
-      "#{severity}\t| #{datetime} | #{@from}\t| #{@chat_type}\t| #{msg}\n"
+      "[#{Thread.current.object_id}] #{severity} | #{datetime} | #{@from}\t| #{@chat_type}\t| #{caller_locations(4,1).first.to_s.split('/').last} | #{msg}\n"
     }
   end
 

@@ -1,7 +1,7 @@
-require_relative 'logger/logging'
-require_relative 'routes'
-require_relative 'models/chat'
-Dir['controllers/*.rb'].each { |file| require_relative file }
+require_relative "#{__dir__}/logger/logging"
+require_relative "#{__dir__}/routes"
+require_relative "#{__dir__}/models/chat"
+Dir["#{__dir__}/controllers/*.rb"].each { |file| require_relative file }
 
 module Router
   include Logging
@@ -17,8 +17,8 @@ module Router
     routes.each do |map|
       route = map.last
       logger.info("Message '#{message.to_s}' routed to #{route[:controller]}##{route[:action]}") unless message.nil?
-      controller = route[:controller].new bot
-      controller.send route[:action], message, chat
+      controller = route[:controller].new bot, message
+      controller.send route[:action], chat
     end
   end
 
@@ -40,6 +40,7 @@ module Router
         chat.grouptitle = message.chat.title
       end
     end
+    chat.nsfw = true if chat.nsfw.nil?
     chat.save
     chat
   end

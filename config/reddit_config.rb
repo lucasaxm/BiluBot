@@ -4,16 +4,7 @@
 module RedditConfig
   include Logging
   class << self
-    attr_reader :reddit_config,
-                :forbidden_subs_file
-  end
-
-  # get list of forbidden subreddits from +forbidden_subs_file+
-  # if +forbidden_subs_file+ doesn't exist it will be created
-  def self.read_forbidden_subs_from_file
-    File.open(@forbidden_subs_file, 'a+', &:readlines).map(&:chomp)
-  rescue Errno::ENOENT
-    logger.warn("forbidden_list.txt doesn't exist")
+    attr_reader :reddit_config
   end
 
   # Create a new reddit session using Redd class
@@ -28,14 +19,6 @@ module RedditConfig
     end
   end
 
-  # This method checks if a subreddit is in the forbidden subreddit list
-  # @param [String] subreddit
-  # @return [Boolean]
-  def self.valid_subreddit?(subreddit)
-    forbidden_subs = read_forbidden_subs_from_file
-    !forbidden_subs.include? subreddit
-  end
-
   # Hash with needed information to create a session using Redd.it
   @reddit_config = {
     client_id: ENV['BILU_REDDIT_CLIENT_ID'],
@@ -43,7 +26,4 @@ module RedditConfig
     username: ENV['BILU_REDDIT_USERNAME'],
     password: ENV['BILU_REDDIT_PASSWORD']
   }
-
-  # Name of the file that contains the forbidden subreddits list
-  @forbidden_subs_file = 'forbidden_list.txt'
 end

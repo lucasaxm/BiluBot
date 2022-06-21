@@ -1,6 +1,9 @@
+require_relative "#{__dir__}/errors"
+
 module GalleryDL
   # Utility class for running and managing gallery-dl
   class Runner
+    include Logging
     include GalleryDL::Support
 
     # @return [String] URL to download
@@ -19,8 +22,9 @@ module GalleryDL
     #
     # @param url [String] URL to pass to gallery-dl executable
     # @param options [Hash, Options] options to pass to the executable. Automatically converted to Options if it isn't already
-    def initialize(url, options = {})
+    def initialize(url, timeout=30, options = {})
       @url = url
+      @timeout = timeout
       @options = GalleryDL::Options.new(options)
       @executable = 'gallery-dl'
     end
@@ -53,16 +57,57 @@ module GalleryDL
     def to_command
       terrapin_line(options_to_commands).command(@options.store)
     end
+
     alias_method :command, :to_command
 
     # Runs the command
     #
     # @return [String] the output of gallery-dl
     def run
-      Timeout::timeout(20, nil, "Terrapin run timeout. options=[#{options_to_commands}]") do
-        terrapin_line(options_to_commands).run(@options.store)
+      # Timeout::timeout(300, nil, "Terrapin run timeout. options=[#{options_to_commands}]") do
+      #   terrapin_line(options_to_commands).run(@options.store)
+      # end
+      command = to_command
+      processes_dir = 'processes'
+      lockfile = "#{__dir__}/#{processes_dir}/#{Thread.current.object_id}.lock"
+      system "mkdir -p #{__dir__}/#{processes_dir}"
+      system "touch #{lockfile}"
+      child_pid = fork do
+        Process.setsid
+
+        # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] command: #{command}."
+        system "#{command} > #{__dir__}/#{processes_dir}/#{Process.pid}.out 2> #{__dir__}/#{processes_dir}/#{Process.pid}.error"
+        logger.info "gallery-dl command completed, removing lockfile. #{`rm -fv #{lockfile}`.inspect}"
+      end
+      # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] waiting for process #{child_pid} to finish."
+    
+      begin
+        Timeout::timeout(@timeout, nil, "Command #{command} run timeout. Killing process #{child_pid}.") do
+          # puts `ps --pid #{child_pid} -o state | tail -1` bnmʋ
+          while File.exists?(lockfile)
+            # puts `ps --pid #{child_pid} -o state | tail -1`
+          end
+        end
+        error = `grep -v '[warning]' '#{__dir__}/#{processes_dir}/#{child_pid}.error'`
+        unless error.empty?
+          raise GalleryDL::GalleryDlError, error
+        end
+        File.read "#{__dir__}/#{processes_dir}/#{child_pid}.out"
+        # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] output=[#{output.inspect}]"
+        # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] error=[#{error.inspect}]"
+      rescue Timeout::Error => e
+        pgid = Process.getpgid(child_pid)
+        # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] Sending HUP to group #{pgid}..."
+        Process.kill('HUP', -pgid)
+        Process.detach(pgid)
+        raise GalleryDL::GalleryDlTimeout
+      ensure
+        # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] deleting #{child_pid}.*"
+        logger.debug "cleaning process dir #{`rm -fv #{__dir__}/#{processes_dir}/#{child_pid}.*`.inspect}"
+        logger.debug "cleaning lockfile #{`rm -fv #{lockfile}`.inspect}"
       end
     end
+
     alias_method :download, :run
 
     # Options configuration.

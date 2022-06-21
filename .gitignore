@@ -15,3 +15,6 @@ gen
 *.iml
 out
 gen
+/gallery-dl/
+nohup.out
+.byebug_history

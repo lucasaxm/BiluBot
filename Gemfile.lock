@@ -1,94 +1,132 @@
+GIT
+  remote: https://github.com/adsteel/redd
+  revision: 93f0eb2284a52162e2ddc5e1e91b0c8f7e329629
+  specs:
+    redd (0.9.0.pre.3)
+      http (~> 2.2)
+      lazy_lazer (~> 0.8.1)
+
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (5.2.3)
-      activesupport (= 5.2.3)
-    activerecord (5.2.3)
-      activemodel (= 5.2.3)
-      activesupport (= 5.2.3)
-      arel (>= 9.0)
-    activesupport (5.2.3)
+    activemodel (6.0.5)
+      activesupport (= 6.0.5)
+    activerecord (6.0.5)
+      activemodel (= 6.0.5)
+      activesupport (= 6.0.5)
+    activesupport (6.0.5)
       concurrent-ruby (~> 1.0, >= 1.0.2)
       i18n (>= 0.7, < 2)
       minitest (~> 5.1)
       tzinfo (~> 1.1)
-    addressable (2.6.0)
-      public_suffix (>= 2.0.2, < 4.0)
-    arel (9.0.0)
-    awesome_print (1.8.0)
+      zeitwerk (~> 2.2, >= 2.2.2)
+    addressable (2.8.0)
+      public_suffix (>= 2.0.2, < 5.0)
+    aw (0.2.0)
+    awesome_print (1.9.2)
     axiom-types (0.1.1)
       descendants_tracker (~> 0.0.4)
       ice_nine (~> 0.11.0)
       thread_safe (~> 0.3, >= 0.3.1)
+    byebug (11.1.3)
+    climate_control (0.2.0)
     coercible (1.0.0)
       descendants_tracker (~> 0.0.1)
-    concurrent-ruby (1.1.5)
+    concurrent-ruby (1.1.10)
     descendants_tracker (0.0.4)
       thread_safe (~> 0.3, >= 0.3.1)
-    domain_name (0.5.20180417)
+    domain_name (0.5.20190701)
       unf (>= 0.0.5, < 1.0.0)
-    dotenv (2.7.2)
-    down (5.2.0)
-      addressable (~> 2.5)
-    equalizer (0.0.11)
-    faraday (0.15.4)
-      multipart-post (>= 1.2, < 3)
-    faraday_middleware (0.13.1)
-      faraday (>= 0.7.4, < 1.0)
-    fastimage (2.2.0)
-    fileutils (1.4.1)
+    dotenv (2.7.6)
+    down (5.3.1)
+      addressable (~> 2.8)
+    dry-inflector (0.2.1)
+    faraday (1.10.0)
+      faraday-em_http (~> 1.0)
+      faraday-em_synchrony (~> 1.0)
+      faraday-excon (~> 1.1)
+      faraday-httpclient (~> 1.0)
+      faraday-multipart (~> 1.0)
+      faraday-net_http (~> 1.0)
+      faraday-net_http_persistent (~> 1.0)
+      faraday-patron (~> 1.0)
+      faraday-rack (~> 1.0)
+      faraday-retry (~> 1.0)
+      ruby2_keywords (>= 0.0.4)
+    faraday-em_http (1.0.0)
+    faraday-em_synchrony (1.0.0)
+    faraday-excon (1.1.0)
+    faraday-httpclient (1.0.1)
+    faraday-multipart (1.0.4)
+      multipart-post (~> 2)
+    faraday-net_http (1.0.1)
+    faraday-net_http_persistent (1.2.0)
+    faraday-patron (1.0.0)
+    faraday-rack (1.0.0)
+    faraday-retry (1.0.3)
+    faraday_middleware (1.2.0)
+      faraday (~> 1.0)
+    fastimage (2.2.6)
+    fileutils (1.6.0)
     forecast_io (2.0.2)
       faraday
       hashie
       multi_json
-    hashie (3.6.0)
+    hashie (5.0.0)
     http (2.2.2)
       addressable (~> 2.3)
       http-cookie (~> 1.0)
       http-form_data (~> 1.0.1)
       http_parser.rb (~> 0.6.0)
-    http-cookie (1.0.3)
+    http-cookie (1.0.5)
       domain_name (~> 0.5)
     http-form_data (1.0.3)
     http_parser.rb (0.6.0)
-    i18n (1.6.0)
+    i18n (1.10.0)
       concurrent-ruby (~> 1.0)
     ice_nine (0.11.2)
-    inflecto (0.0.2)
-    mini_portile2 (2.4.0)
-    minitest (5.11.3)
-    multi_json (1.13.1)
-    multipart-post (2.1.1)
-    nokogiri (1.10.10-x64-mingw32)
-      mini_portile2 (~> 2.4.0)
-    pg (1.1.4-x64-mingw32)
-    public_suffix (3.1.0)
-    redd (0.8.8)
-      http (~> 2.2)
-    rmagick (4.1.2)
-    telegram-bot-ruby (0.8.6.1)
-      faraday
-      inflecto
-      virtus
+    lazy_lazer (0.8.1)
+    mime-types (3.4.1)
+      mime-types-data (~> 3.2015)
+    mime-types-data (3.2022.0105)
+    minitest (5.16.0)
+    multi_json (1.15.0)
+    multipart-post (2.2.3)
+    pg (1.3.5)
+    public_suffix (4.0.7)
+    rmagick (4.2.5)
+    ruby2_keywords (0.0.5)
+    streamio-ffmpeg (3.0.2)
+      multi_json (~> 1.8)
+    telegram-bot-ruby (0.19.2)
+      dry-inflector
+      faraday (~> 1.0)
+      virtus (~> 2.0)
+    terrapin (0.6.0)
+      climate_control (>= 0.0.3, < 1.0)
     thread_safe (0.3.6)
-    timezone (1.3.4)
-    tzinfo (1.2.5)
+    timezone (1.3.16)
+    tzinfo (1.2.9)
       thread_safe (~> 0.1)
     unf (0.1.4)
       unf_ext
-    unf_ext (0.0.7.6)
-    virtus (1.0.5)
+    unf_ext (0.0.8.2)
+    virtus (2.0.0)
       axiom-types (~> 0.1)
       coercible (~> 1.0)
       descendants_tracker (~> 0.0, >= 0.0.3)
-      equalizer (~> 0.0, >= 0.0.9)
+    zeitwerk (2.6.0)
 
 PLATFORMS
-  x64-mingw32
+  x86_64-linux
 
 DEPENDENCIES
-  activerecord (~> 5.0, >= 5.0.0.1)
+  activerecord (~> 6.0.2)
+  activesupport (~> 6.0.2)
+  aw
   awesome_print
+  byebug
+  concurrent-ruby
   dotenv (~> 2.5)
   down
   faraday
@@ -96,15 +134,17 @@ DEPENDENCIES
   fastimage
   fileutils
   forecast_io
-  nokogiri
+  mime-types (~> 3.4)
   pg (>= 0.19.0.beta)
-  redd (~> 0.8.8)
+  redd!
   rmagick
-  telegram-bot-ruby (~> 0.8.6.1)
+  streamio-ffmpeg
+  telegram-bot-ruby (~> 0.19.2)
+  terrapin (~> 0.6.0)
   timezone (~> 1.0)
 
 RUBY VERSION
-   ruby 2.4.4p296
+   ruby 3.1.0p0
 
 BUNDLED WITH
-   1.16.4
+   2.3.15

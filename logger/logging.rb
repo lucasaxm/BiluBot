@@ -1,12 +1,12 @@
-require_relative 'logger4_telegram'
+require_relative "#{__dir__}/logger4_telegram"
 
 module Logging
   class << self
     def logger
-      @logger ||= Logger4Telegram.new(Logger4Telegram::DEBUG)
+      @logger ||= {}
+      @logger[Thread.current.object_id] ||= Logger4Telegram.new(Logger4Telegram::DEBUG)
+      @logger[Thread.current.object_id]
     end
-
-    attr_writer :logger
   end
 
   def self.included(base)

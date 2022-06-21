@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-require_relative '../logger/logging'
+require_relative "#{__dir__}/../logger/logging"
 require 'active_record'
 require 'pg'
 
@@ -15,6 +15,7 @@ module BiluSchema
           t.string :telegram_type
           t.string :grouptitle
           t.string :username
+          t.boolean :nsfw
         end
 
         ActiveRecord::Base.connection.create_table :subreddits do |t|
@@ -36,12 +37,16 @@ module BiluSchema
           t.integer :chat_id
           t.integer :reddit_post_id
         end
-      rescue ActiveRecord::StatementInvalid => e
-        if e.cause.class.equal? PG::DuplicateTable
-          logger.info 'tables already exists'
-        else
-          logger.error e.cause
+
+        ActiveRecord::Base.connection.create_table :banned_subreddits do |t|
+          t.integer :chat_id
+          t.integer :subreddit_id
         end
+      rescue ActiveRecord::StatementInvalid => e
+        return if e.cause.class.equal? PG::DuplicateTable
+
+        logger.error e.cause
+        raise e
       end
     end
 
