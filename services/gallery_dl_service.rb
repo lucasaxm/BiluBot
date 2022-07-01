@@ -73,31 +73,38 @@ class GalleryDLService
   end
 
   def send_media_from_url url
-    options = {
-      destination: @dir
-    }
-    result = if @reddit_post.nil?
-      logger.info "Trying to send #{url} as media"
-      GalleryDL.download url, @timeout, options
-    else
-      permalink = "reddit.com#{@reddit_post.permalink}"
-      logger.info "Trying to send #{permalink} as media"
-      permalink_result = GalleryDL.download permalink, @timeout, options
-      if permalink_result.information.empty? && !@reddit_post.url.nil?
-        logger.info "Trying to send #{@reddit_post.url} as media"
-        GalleryDL.download @reddit_post.url, @timeout, options
+    chunk_size=10
+    page=1
+    loop do
+      options = {
+        destination: @dir,
+        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}"
+      }
+      result = if @reddit_post.nil?
+        logger.info "Trying to send #{url} as media"
+        GalleryDL.download url, @timeout, options
       else
-        permalink_result
+        permalink = "reddit.com#{@reddit_post.permalink}"
+        logger.info "Trying to send #{permalink} as media"
+        permalink_result = GalleryDL.download permalink, @timeout, options
+        if permalink_result.information.empty? && !@reddit_post.url.nil?
+          logger.info "Trying to send #{@reddit_post.url} as media"
+          GalleryDL.download @reddit_post.url, @timeout, options
+        else
+          permalink_result
+        end
       end
-    end
-    if ((result.nil?) || (result.information.nil?) || (result.information.any? { |r| r.nil? || r[:local_path].nil? }))
-      logger.error 'Failed to download media using gallery-dl'
-      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
+      if ((result.nil?) || (result.information.nil?) || (result.information.any? { |r| r.nil? || r[:local_path].nil? }))
+        logger.error 'Failed to download media using gallery-dl'
+        raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
 
-      return
+        return
+      end
+      logger.info "page #{page}: #{result.information.size} medias found from #{url}"
+      send_gallerydl_media(result)
+      break if result.information.size < chunk_size
+      page+=1
     end
-    logger.info "#{result.information.size} medias found from #{url}"
-    send_gallerydl_media(result)
   rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
     @bilu.log_to_channel(e.message, @message)
     raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
