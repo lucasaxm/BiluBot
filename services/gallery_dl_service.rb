@@ -171,8 +171,7 @@ class GalleryDLService
       )
       messages_sent.push(*response['result'])
     end
-    return if @reddit_post.nil?
-
+    return if @reddit_post.nil? || messages_sent.empty?
     @bilu.bot.api.send_message({
                                  chat_id: @message.chat.id,
                                  reply_to_message_id: messages_sent.first['message_id'],
@@ -218,6 +217,8 @@ class GalleryDLService
       local_video_media(information)
     when 'audio'
       local_audio_media(information)
+    when 'animation'
+      local_animation_media(information)
     end
   end
 
@@ -263,6 +264,33 @@ class GalleryDLService
     media
   end
 
+  def local_animation_media(information)
+    filepath = information[:local_path]
+    caption = build_caption(information)
+    file_ext = File.extname(filepath)
+    case file_ext
+    when '.gif'
+      upload = Faraday::UploadIO.new(filepath, 'image/gif')
+    when '.mp4'
+      upload = Faraday::UploadIO.new(filepath, 'video/mp4')
+    else
+      logger.error "file extension #{file_ext} is not valid"
+      return
+    end
+    options = {}
+    thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
+    if File.exists? thumb
+      options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
+    end
+    options['duration'] = information[:duration].to_i unless information[:duration].nil?
+    media = {
+      type: 'document',
+      media: upload_to_telegram('animation', upload, options),
+    }
+    media[:caption] = caption unless caption.nil?
+    media
+  end
+
   def local_audio_media(information)
     filepath = information[:local_path]
     caption = build_caption(information)
@@ -292,7 +320,14 @@ class GalleryDLService
   def get_file_type(path)
     #puts "mime type: #{MIME::Types.type_for(path)}"
     #puts "mime type filtered: #{MIME::Types.type_for(path).group_by{|x| x.try(:media_type)}.max_by{|x| x.last.length}.first}"
-    MIME::Types.type_for(path).group_by{|x| x.try(:media_type)}.max_by{|x| x.last.length}.first
+    mime_type = MIME::Types.type_for(path).group_by{|x| x.try(:media_type)}.max_by{|x| x.last.length}
+    if mime_type.last.length == 1 && mime_type.last.first.preferred_extension == 'gif'
+      return 'animation'
+    elsif mime_type.first == 'video'
+      ffmpeg_movie = FFMPEG::Movie.new(path)
+      return 'animation' if ffmpeg_movie.audio_codec.nil?
+    end
+    return mime_type.first
     #ffmpeg_movie = FFMPEG::Movie.new(path)
     #return 'video' unless ffmpeg_movie.frame_rate.nil?
 
