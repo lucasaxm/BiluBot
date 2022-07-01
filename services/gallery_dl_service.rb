@@ -78,7 +78,7 @@ class GalleryDLService
     loop do
       options = {
         destination: @dir,
-        range: "#{(page-1)*chunk+1}-#{page*chunk}"
+        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}"
       }
       result = if @reddit_post.nil?
         logger.info "Trying to send #{url} as media"
