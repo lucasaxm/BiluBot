@@ -171,6 +171,12 @@ class GalleryDLService
         end
         uploaded_media
       end
+      if (media.map{ |x| x[:type] }.include? 'document') && (media.any?{ |x| x[:type] != 'document' })
+        media.map! do |m|
+           m[:type] = 'video' if m[:type] == 'document'
+           m
+        end
+      end
       response = @bilu.bot.api.send_media_group(
         chat_id: @message.chat.id,
         reply_to_message_id: @message.message_id,
@@ -203,15 +209,6 @@ class GalleryDLService
     else
       response['result'][type]['file_id']
     end
-  rescue Telegram::Bot::Exceptions::ResponseError => e
-    if e.error_code == 429
-      sleep_time = JSON.parse(e.response.body)['parameters']['retry_after']
-      logger.debug "retrying after #{sleep_time}"
-      sleep(sleep_time)
-      retry
-    else
-      raise e
-    end
   end
 
   private
@@ -220,12 +217,21 @@ class GalleryDLService
     case get_file_type information[:local_path]
     when 'image'
       local_photo_media(information)
-    when 'video'
+    when 'video','animation'
       local_video_media(information)
     when 'audio'
       local_audio_media(information)
-    when 'animation'
-      local_animation_media(information)
+#    when 'animation'
+#      local_animation_media(information)
+    end
+  rescue Telegram::Bot::Exceptions::ResponseError => e
+    if e.error_code == 429
+      sleep_time = JSON.parse(e.response.body)['parameters']['retry_after']
+      logger.debug "retrying after #{sleep_time}"
+      sleep(sleep_time)
+      retry
+    else
+      raise e
     end
   end
 
