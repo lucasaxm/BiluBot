@@ -107,6 +107,13 @@ module Routes
           action: :delete_message
       },
       lambda do |message|
+        regex_match message, %r{^\/bilov(?:@((?!^$)([^\s]))*)?$}i
+      end => {
+          controller: MiscController,
+          action: :delete_message
+      },
+
+      lambda do |message|
         regex_match message, %r{^\/distort(?:@((?!^$)([^\s]))*)?$}i
       end => {
           controller: ImageController,

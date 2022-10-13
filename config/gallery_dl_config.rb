@@ -29,7 +29,7 @@ module GalleryDLConfig
       },
       ytdl: {
         enabled: true,
-        format: 'bestvideo[filesize<35M]+bestaudio[filesize<15M]/bestvideo[filesize_approx<35M]+bestaudio[filesize_approx<15M]/bestvideo[filesize<40M]+bestaudio[filesize<10M]/bestvideo[filesize_approx<40M]+bestaudio[filesize_approx<10M]/bestvideo[filesize<15M]+bestaudio[filesize<35M]/bestvideo[filesize_approx<15M]+bestaudio[filesize_approx<35M]/bestvideo[filesize<10M]+bestaudio[filesize<40M]/bestvideo[filesize_approx<10M]+bestaudio[filesize_approx<40M]/best[filesize<50M]/best[filesize_approx<50M]/bestvideo[height<=360]+bestaudio[ext=m4a]/best',
+        format: 'bestvideo[filesize<35M]+bestaudio[filesize<15M][ext=m4a]/bestvideo[filesize_approx<35M]+bestaudio[filesize_approx<15M][ext=m4a]/bestvideo[filesize<40M]+bestaudio[filesize<10M][ext=m4a]/bestvideo[filesize_approx<40M]+bestaudio[filesize_approx<10M][ext=m4a]/bestvideo[filesize<15M]+bestaudio[filesize<35M][ext=m4a]/bestvideo[filesize_approx<15M]+bestaudio[filesize_approx<35M][ext=m4a]/bestvideo[filesize<10M]+bestaudio[filesize<40M][ext=m4a]/bestvideo[filesize_approx<10M]+bestaudio[filesize_approx<40M][ext=m4a]/best[filesize<50M]/best[filesize_approx<50M]/bestvideo[height<=360]+bestaudio[ext=m4a]/best',
         logging: true,
         "cmdline-args": "--write-thumbnail --convert-thumbnails jpg --http-chunk-size 8M --max-filesize 52428800 --merge-output-format mp4",
         module: 'yt_dlp',
