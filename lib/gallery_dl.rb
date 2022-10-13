@@ -28,4 +28,17 @@ module GalleryDL
     end
   end
 
+  # Downloads given array of URLs with any options passed
+  #
+  # @param urls [String, Array] URLs to download
+  # @param options [Hash] Downloader options
+  # @return [GalleryDL::Media, Array] Video model or array of Video models
+  def fetch_metadata(urls, timeout = 30, options = {})
+    if urls.is_a? Array
+      urls.map { |url| GalleryDL::Media.fetch_metadata(url, timeout, options) }.sum
+    else
+      GalleryDL::Media.fetch_metadata(urls, timeout, options) # Urls should be singular but oh well. url = urls. There. Go cry in a corner.
+    end
+  end
+
 end

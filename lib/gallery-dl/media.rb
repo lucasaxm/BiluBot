@@ -16,6 +16,12 @@ module GalleryDL
         media
       end
 
+      def fetch_metadata(url, timeout=30, options = {})
+        media = new(url, timeout, options)
+        media.fetch_metadata
+        media
+      end
+
       alias_method :get, :download
     end
 
@@ -42,6 +48,14 @@ module GalleryDL
       set_information_from_json(GalleryDL::Runner.new(url, @timeout, runner_options).run)
     end
 
+    def fetch_metadata
+      # gallery-dl --no-download 'https://www.instagram.com/lucasaxm/'
+      raise ArgumentError.new('url cannot be nil') if @url.nil?
+      raise ArgumentError.new('url cannot be empty') if @url.empty?
+      
+      set_information_from_json(GalleryDL::Runner.new(url, @timeout, runner_options.with({no_download: true})).run, false)
+    end
+
     alias_method :get, :download
 
     # Returns the expected filename
@@ -55,7 +69,7 @@ module GalleryDL
     #
     # @return [OpenStruct] information
     def information
-      @information || grab_information_without_download
+      @information
     end
 
     # Redirect methods for information getting
@@ -100,26 +114,24 @@ module GalleryDL
       GalleryDL::Options.new(@options.to_h.merge(default_options))
     end
 
-    def set_information_from_json(files) # :nodoc:
-      @information = files.split("\n").map { |file| get_metadata((file[0] == '#' ? file[1..-1] : file).strip) }
+    def set_information_from_json(files, downloaded=true) # :nodoc:
+      @information = files.split("\n").map { |file| get_metadata((file[0] == '#' ? file[1..-1] : file).strip, downloaded) }
     end
 
-    def grab_information_without_download # :nodoc:
-      set_information_from_json(GalleryDL::Runner.new(url, runner_options.with({dump_json: true})).run)
-    end
-
-    def get_metadata(file)
-      unless File.exists? file
+    def get_metadata(file, downloaded)
+      if (downloaded && !(File.exists?(file)))
         logger.error("Couldn't extract metadata #{file} doesn't exists")
         return
       end
       metadata_file = "#{file}.json"
       unless File.exists? metadata_file
-        logger.error("Couldn't extract metadata #{file} doesn't exists")
+        logger.error("Couldn't extract metadata #{metadata_file} doesn't exists")
         return
       end
       json_parse = JSON.parse(File.read(metadata_file), symbolize_names: true)
-      json_parse[:local_path] = file
+      if downloaded
+        json_parse[:local_path] = file
+      end
       json_parse
     end
   end

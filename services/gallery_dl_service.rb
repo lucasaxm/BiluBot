@@ -72,6 +72,30 @@ class GalleryDLService
     end
   end
 
+  def fetch_metadata
+    unless @reddit_post.nil?
+      fetch_metadata_from_url @reddit_post.url
+      return
+    end
+    urls = extract_urls @message
+    errors = []
+    urls.each do |url|
+      begin
+        fetch_metadata_from_url url
+      rescue Telegram::Bot::Exceptions::Base => e
+        errors << {
+          url: url,
+          exception: e
+        }
+        next
+      end
+    end
+#    if ((!errors.empty?) && (@reddit_post.nil?))
+    if !errors.empty?
+      raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{errors}" 
+    end
+  end
+
   def send_media_from_url url
     chunk_size=10
     page=1
@@ -110,6 +134,49 @@ class GalleryDLService
     raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
   ensure
     logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`.inspect}"
+  end
+
+  def fetch_metadata_from_url url
+    options = {
+      destination: @dir
+    }
+    result = if @reddit_post.nil?
+      logger.info "Trying to fetch metadata from #{url}"
+      GalleryDL.fetch_metadata url, @timeout, options
+    else
+      permalink = "reddit.com#{@reddit_post.permalink}"
+      logger.info "Trying to fetch metadata from #{permalink}"
+      permalink_result = GalleryDL.fetch_metadata permalink, @timeout, options
+      if permalink_result.information.empty? && !@reddit_post.url.nil?
+        logger.info "Trying to fetch metadata from #{@reddit_post.url}"
+        GalleryDL.fetch_metadata @reddit_post.url, @timeout, options
+      else
+        permalink_result
+      end
+    end
+    if ((result.nil?) || (result.information.nil?))
+      logger.error 'Failed to fetch metadata using gallery-dl'
+      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
+
+      return
+    end
+    logger.info "#{result.information.size} medias found from #{url}"
+    send_medias_found_message(result, url)
+  rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
+    @bilu.log_to_channel(e.message, @message)
+    raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
+  ensure
+    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`.inspect}"
+  end
+
+  def fetch_metadata_callback
+    split_data = @message.data.split(' ')
+    return unless "#{@message.from.id}" == "#{split_data[3]}"
+    misc_service = MiscService.new(@bilu, @message.message)
+    misc_service.delete_message
+    return unless "#{split_data[2]}" == 'yes'
+    @message = @message.message.reply_to_message
+    send_media
   end
 
   def build_caption(information)
@@ -155,6 +222,27 @@ class GalleryDLService
     end
 
     full_caption
+  end
+
+  def send_medias_found_message(result, url)
+    reply_markup = Telegram::Bot::Types::InlineKeyboardMarkup.new(
+      inline_keyboard: [[
+        Telegram::Bot::Types::InlineKeyboardButton.new(
+          text: "Yes",
+          callback_data: "callback download yes #{@message.from.id}"
+        ),
+        Telegram::Bot::Types::InlineKeyboardButton.new(
+          text: "No",
+          callback_data: "callback download no #{@message.from.id}"
+        )
+      ]]
+    )
+    @bilu.bot.api.send_message({
+      chat_id: @message.chat.id,
+      reply_to_message_id: @message.message_id,
+      text: "Download #{result.information.size} media#{'s' if result.information.size > 1}?",
+      reply_markup: reply_markup
+    })
   end
 
   def send_gallerydl_media(result)
