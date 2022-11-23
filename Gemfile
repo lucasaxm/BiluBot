@@ -2,8 +2,8 @@ source 'https://rubygems.org'
 
 ruby '~> 3.1.0'
 
-gem 'activerecord', '~> 6.0.2'
-gem 'activesupport', '~> 6.0.2'
+gem 'activerecord', '~> 7.0.3'
+gem 'activesupport', '~> 7.0.3'
 gem "aw"
 gem 'awesome_print'
 gem 'byebug'
