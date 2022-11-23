@@ -12,6 +12,14 @@ class GalleryDLController
     @service.send_media
   end
 
+  def fetch_metadata(chat)
+    @service.fetch_metadata
+  end
+
+  def fetch_metadata_callback(chat)
+    @service.fetch_metadata_callback
+  end
+
   def search_and_send_as_audio(chat)
     @service.search_and_send 'audio'
   end

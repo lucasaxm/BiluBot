@@ -156,7 +156,13 @@ module Routes
         has_link?(message) && !is_reddit_link?(message)
       end => {
           controller: GalleryDLController,
-          action: :send_media
+          action: :fetch_metadata
+      },
+      lambda do |message|
+        regex_match message, %r{^callback download .*}i
+      end => {
+          controller: GalleryDLController,
+          action: :fetch_metadata_callback
       },
       lambda do |message|
         regex_match message, %r{^-p [[:alpha:]]+( [[:alpha:]]+)*$}i
