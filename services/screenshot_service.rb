@@ -38,7 +38,7 @@ class ScreenshotService
         no_ads: true,
         no_cookie_banners: true,
         width: 720,
-        height: 1560,
+        height: 1080,
         quality: 100
       }
       {
