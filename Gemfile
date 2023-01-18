@@ -2,7 +2,7 @@ source 'https://rubygems.org'
 
 ruby '~> 3.1.0'
 
-gem 'activerecord', '~> 7.0.3'
+gem 'activerecord', '~> 7.0.4'
 gem 'activesupport', '~> 7.0.3'
 gem "aw"
 gem 'awesome_print'
