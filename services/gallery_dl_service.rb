@@ -209,7 +209,7 @@ class GalleryDLService
       "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}"
     when 'ytdl'
       case information[:subcategory].downcase
-      when 'youtube', 'youtubesearch'
+      when 'youtube', 'youtubesearch', 'youtubeclip'
         "#{information[:title]}:\n#{information[:description]}" unless information[:extension] == 'm4a'
       when 'facebook'
         if information[:fulltitle].downcase == 'watch'
