@@ -102,11 +102,19 @@ class GalleryDLService
     loop do
       options = {
         destination: @dir,
-        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}"
+        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}",
+        cookies: "#{File.join(Dir.home, 'cookies.txt')}"
       }
       result = if @reddit_post.nil?
-        logger.info "Trying to send #{url} as media"
-        GalleryDL.download url, @timeout, options
+        logger.info "Trying to send media from #{url} with yt-dlp"
+        ytdlp_result = GalleryDL.download url, @timeout, options
+        if ytdlp_result.information.empty?
+          logger.info "Trying to send media from #{url} with youtube-dl"
+          options[:config] = "#{__dir__}/../config/youtubedl.conf"
+          GalleryDL.download url, @timeout, options
+        else
+          ytdlp_result
+        end
       else
         permalink = "reddit.com#{@reddit_post.permalink}"
         logger.info "Trying to send #{permalink} as media"
@@ -138,11 +146,19 @@ class GalleryDLService
 
   def fetch_metadata_from_url url
     options = {
-      destination: @dir
+      destination: @dir,
+      cookies: "#{File.join(Dir.home, 'cookies.txt')}"
     }
     result = if @reddit_post.nil?
-      logger.info "Trying to fetch metadata from #{url}"
-      GalleryDL.fetch_metadata url, @timeout, options
+      logger.info "Trying to fetch metadata from #{url} with yt-dlp"
+      ytdlp_result = GalleryDL.fetch_metadata url, @timeout, options
+      if ytdlp_result.information.empty?
+        logger.info "Trying to fetch metadata from #{url} with youtube-dl"
+        options[:config] = "#{__dir__}/../config/youtubedl.conf"
+        GalleryDL.fetch_metadata url, @timeout, options
+      else
+        ytdlp_result
+      end
     else
       permalink = "reddit.com#{@reddit_post.permalink}"
       logger.info "Trying to fetch metadata from #{permalink}"
@@ -154,7 +170,7 @@ class GalleryDLService
         permalink_result
       end
     end
-    if ((result.nil?) || (result.information.nil?))
+    if ((result.nil?) || (result.information.nil?) || (result.information.empty?))
       logger.error 'Failed to fetch metadata using gallery-dl'
       raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
 
@@ -203,6 +219,8 @@ class GalleryDLService
         end
       when 'twitchvod'
         "#{information[:uploader]}:\n#{information[:fulltitle]}"
+      when 'tiktokvm'
+        "#{information[:creator]}(@#{information[:uploader]}):\n#{information[:description]}"
       when 'steam'
         "#{information[:webpage_url_basename]}"
       when 'generic'
