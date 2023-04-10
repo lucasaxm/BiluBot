@@ -219,6 +219,8 @@ class GalleryDLService
         end
       when 'twitchvod'
         "#{information[:uploader]}:\n#{information[:fulltitle]}"
+      when 'twitchclips'
+        "@#{information[:creator]} clipped by @#{information[:uploader]}:\n#{information[:fulltitle]}"
       when 'tiktokvm'
         "#{information[:creator]}(@#{information[:uploader]}):\n#{information[:description]}"
       when 'steam'
@@ -235,8 +237,8 @@ class GalleryDLService
         "#{@reddit_post.over_18? ? "\u{1F51E} NSFW " : ''}#{@reddit_post.spoiler? ? "\u{26A0} SPOILER" : ''}\n#{@reddit_post.title}"
       end
     end
-    if (!full_caption.nil?) && (full_caption.length > 150)
-      return full_caption[0..296]+'...'
+    if (!full_caption.nil?) && (full_caption.length > 280)
+      return full_caption[0..279]+'...'
     end
 
     full_caption

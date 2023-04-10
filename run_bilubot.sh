@@ -7,7 +7,7 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 LOOP=true
 
 run() {
-    ruby ${SCRIPT_DIR}/server.rb
+    bundle exec ruby ${SCRIPT_DIR}/server.rb
 }
 
 while
@@ -15,4 +15,4 @@ while
     $LOOP
 do
     continue
-done 
+done
