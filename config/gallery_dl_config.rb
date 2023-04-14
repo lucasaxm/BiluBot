@@ -14,8 +14,7 @@ module GalleryDLConfig
     extractor: {
       filename: '{filename|id}.{extension}',
       twitter: {
-        cards: 'ytdl',
-        quoted: true
+        cards: 'ytdl'
       },
       ytdl: {
         enabled: true,
