@@ -72,11 +72,12 @@ module GalleryDL
       lockfile = "#{__dir__}/#{processes_dir}/#{Thread.current.object_id}.lock"
       system "mkdir -p #{__dir__}/#{processes_dir}"
       system "touch #{lockfile}"
+      processes_dir = Dir["#{__dir__}/**/#{processes_dir}"].first
       child_pid = fork do
         Process.setsid
 
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] command: #{command}."
-        system "#{command} > #{__dir__}/#{processes_dir}/#{Process.pid}.out 2> #{__dir__}/#{processes_dir}/#{Process.pid}.error"
+        system "#{command} > #{processes_dir}/#{Process.pid}.out 2> #{processes_dir}/#{Process.pid}.error"
         logger.info "gallery-dl command completed, removing lockfile. #{`rm -fv #{lockfile}`.inspect}"
       end
       # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] waiting for process #{child_pid} to finish."
@@ -88,11 +89,11 @@ module GalleryDL
             # puts `ps --pid #{child_pid} -o state | tail -1`
           end
         end
-        error = `grep -v '[warning]' '#{__dir__}/#{processes_dir}/#{child_pid}.error'`
+        error = `grep -v -e '\\[warning\\]' -e '\\[info\\]' #{processes_dir}/#{child_pid}.error`
         unless error.empty?
           raise GalleryDL::GalleryDlError, error
         end
-        File.read "#{__dir__}/#{processes_dir}/#{child_pid}.out"
+        File.read "#{processes_dir}/#{child_pid}.out"
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] output=[#{output.inspect}]"
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] error=[#{error.inspect}]"
       rescue Timeout::Error => e
@@ -103,7 +104,7 @@ module GalleryDL
         raise GalleryDL::GalleryDlTimeout
       ensure
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] deleting #{child_pid}.*"
-        logger.debug "cleaning process dir #{`rm -fv #{__dir__}/#{processes_dir}/#{child_pid}.*`.inspect}"
+        logger.debug "cleaning process dir #{`rm -fv #{processes_dir}/#{child_pid}.*`.inspect}"
         logger.debug "cleaning lockfile #{`rm -fv #{lockfile}`.inspect}"
       end
     end

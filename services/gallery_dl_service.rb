@@ -103,7 +103,7 @@ class GalleryDLService
       options = {
         destination: @dir,
         range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}",
-        cookies: "#{File.join(Dir.home, 'cookies.txt')}"
+        "cookies-from-browser": "chrome:#{File.join(Dir.home, 'puppeteer', 'user_data', 'Default')}"
       }
       result = if @reddit_post.nil?
         logger.info "Trying to send media from #{url} with yt-dlp"
@@ -147,7 +147,7 @@ class GalleryDLService
   def fetch_metadata_from_url url
     options = {
       destination: @dir,
-      cookies: "#{File.join(Dir.home, 'cookies.txt')}"
+      "cookies-from-browser": "chrome:#{File.join(Dir.home, 'puppeteer', 'user_data', 'Default')}"
     }
     result = if @reddit_post.nil?
       logger.info "Trying to fetch metadata from #{url} with yt-dlp"
