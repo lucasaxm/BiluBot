@@ -89,11 +89,12 @@ module GalleryDL
             # puts `ps --pid #{child_pid} -o state | tail -1`
           end
         end
-        error = `grep -v -e '\\[warning\\]' -e '\\[info\\]' #{processes_dir}/#{child_pid}.error`
-        unless error.empty?
-          raise GalleryDL::GalleryDlError, error
+        error_lines = File.readable?("#{processes_dir}/#{child_pid}.error") ? File.readlines("#{processes_dir}/#{child_pid}.error") : []
+        output = File.read "#{processes_dir}/#{child_pid}.out"
+        if error_lines.filter{|line| line.start_with? '['}.any?{|line| (!line.include? '[warning]') && (!line.include? '[info]')}
+          raise GalleryDL::GalleryDlError, "stdout:\n#{output}stderr:\n#{error_lines.join}"
         end
-        File.read "#{processes_dir}/#{child_pid}.out"
+        output
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] output=[#{output.inspect}]"
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] error=[#{error.inspect}]"
       rescue Timeout::Error => e
