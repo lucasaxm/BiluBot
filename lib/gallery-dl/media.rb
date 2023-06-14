@@ -93,7 +93,8 @@ module GalleryDL
     # Add in other default options here.
     def default_options
       {
-          write_metadata: true
+          write_metadata: true,
+          verbose: true
       }
     end
 
@@ -115,7 +116,7 @@ module GalleryDL
     end
 
     def set_information_from_json(files, downloaded=true) # :nodoc:
-      @information = files.split("\n").map { |file| get_metadata((file[0] == '#' ? file[1..-1] : file).strip, downloaded) }
+      @information = files.split("\n").map { |file| get_metadata((file[0] == '#' ? file[1..-1] : file).strip, downloaded) }.compact
     end
 
     def get_metadata(file, downloaded)

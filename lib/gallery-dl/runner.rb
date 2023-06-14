@@ -89,10 +89,11 @@ module GalleryDL
             # puts `ps --pid #{child_pid} -o state | tail -1`
           end
         end
-        error_lines = File.readable?("#{processes_dir}/#{child_pid}.error") ? File.readlines("#{processes_dir}/#{child_pid}.error") : []
+        stderr_lines = File.readable?("#{processes_dir}/#{child_pid}.error") ? File.readlines("#{processes_dir}/#{child_pid}.error") : []
         output = File.read "#{processes_dir}/#{child_pid}.out"
-        if error_lines.filter{|line| line.start_with? '['}.any?{|line| (!line.include? '[warning]') && (!line.include? '[info]')}
-          raise GalleryDL::GalleryDlError, "stdout:\n#{output}stderr:\n#{error_lines.join}"
+        error_lines = stderr_lines.filter{|line| line.start_with? '['}.filter{|line| (!line.include? '[warning]') && (!line.include? '[info]') && (!line.include? '[debug]')}
+        if (!error_lines.empty?) && (!error_lines.filter{|line| !line.downcase.include? 'conversion failed'}.empty?)
+          raise GalleryDL::GalleryDlError, "stdout:\n#{output}stderr:\n#{stderr_lines.join}"
         end
         output
         # puts "[PID:#{Process.pid}][TID:#{Thread.current.object_id}] output=[#{output.inspect}]"
