@@ -12,7 +12,7 @@ module GalleryDLConfig
 
   @default = {
     extractor: {
-      filename: '{filename|id}.{extension}',
+      filename: '{filename|id}.{extension|ext}',
       twitter: {
         cards: 'ytdl'
       },
