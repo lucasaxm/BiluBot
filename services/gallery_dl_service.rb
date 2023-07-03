@@ -237,8 +237,8 @@ class GalleryDLService
         "#{@reddit_post.over_18? ? "\u{1F51E} NSFW " : ''}#{@reddit_post.spoiler? ? "\u{26A0} SPOILER" : ''}\n#{@reddit_post.title}"
       end
     end
-    if (!full_caption.nil?) && (full_caption.length > 280)
-      return full_caption[0..279]+'...'
+    if (!full_caption.nil?) && (full_caption.length > 500)
+      return full_caption[0..499]+'...'
     end
 
     full_caption
