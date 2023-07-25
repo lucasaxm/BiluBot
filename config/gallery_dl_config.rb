@@ -19,7 +19,9 @@ module GalleryDLConfig
         "user-agent": "Python:#{ENV['BILU_REDDIT_APP_NAME_DL']}:v1.0 (by /u/#{ENV['BILU_REDDIT_USERNAME']})"
       },
       twitter: {
-        cards: 'ytdl'
+        cards: 'ytdl',
+        username: ENV['BILU_TWITTER_USERNAME'],
+        password: ENV['BILU_TWITTER_PASSWORD']
       },
       ytdl: {
         enabled: true,
