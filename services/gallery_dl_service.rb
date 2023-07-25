@@ -80,9 +80,11 @@ class GalleryDLService
     end
     urls = extract_urls @message
     errors = []
+    results = []
     urls.each do |url|
       begin
-        fetch_metadata_from_url url
+        result = fetch_metadata_from_url url
+        results << result unless result.nil?
       rescue Telegram::Bot::Exceptions::Base, GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
         if e.message.include?("instagram") && (e.message.include?("redirect to login page") || e.message.include?("401 Unauthorized"))
           text = "Instagram redirect to login page. Invoking puppeteer to log back in"
@@ -100,10 +102,10 @@ class GalleryDLService
         next
       end
     end
-#    if ((!errors.empty?) && (@reddit_post.nil?))
     if !errors.empty?
       raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{errors}" 
     end
+    send_medias_found_message(results)
   end
 
   def send_media_from_url url
@@ -187,7 +189,7 @@ class GalleryDLService
       return
     end
     logger.info "#{result.information.size} medias found from #{url}"
-    send_medias_found_message(result, url)
+    result
   rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
     @bilu.log_to_channel(e.message, @message)
     #raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" if @reddit_post.nil?
@@ -255,7 +257,8 @@ class GalleryDLService
     full_caption
   end
 
-  def send_medias_found_message(result, url)
+  def send_medias_found_message(results)
+    return if (results.nil? || results.empty?)
     reply_markup = Telegram::Bot::Types::InlineKeyboardMarkup.new(
       inline_keyboard: [[
         Telegram::Bot::Types::InlineKeyboardButton.new(
@@ -268,10 +271,11 @@ class GalleryDLService
         )
       ]]
     )
+    total_medias = results.map { |result| result.information&.size.to_i }.sum
     @bilu.bot.api.send_message({
       chat_id: @message.chat.id,
       reply_to_message_id: @message.message_id,
-      text: "Download #{result.information.size} media#{'s' if result.information.size > 1}?",
+      text: "Download #{total_medias} media#{'s' if total_medias > 1}?",
       reply_markup: reply_markup
     })
   end
