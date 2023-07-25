@@ -68,6 +68,7 @@ module GalleryDL
       #   terrapin_line(options_to_commands).run(@options.store)
       # end
       command = to_command
+      logger.debug "terrapin command is #{command}"
       processes_dir = 'processes'
       lockfile = "#{__dir__}/#{processes_dir}/#{Thread.current.object_id}.lock"
       system "mkdir -p #{__dir__}/#{processes_dir}"

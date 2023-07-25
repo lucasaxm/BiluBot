@@ -65,12 +65,6 @@ module Routes
         action: :ban_subreddit
       },
       lambda do |message|
-        regex_match message, %r{^\/weather(?:@((?!^$)([^\s]))*)? [[:alpha:]]+( [[:alpha:]]+)*$}i
-      end => {
-          controller: ForecastController,
-          action: :get_current_weather
-      },
-      lambda do |message|
         is_reddit_link?(message)
       end => {
           controller: RedditController,
@@ -101,56 +95,16 @@ module Routes
           action: :take_screenshot
       },
       lambda do |message|
-        regex_match message, %r{^\/msg(?:all)?(?:@((?!^$)([^\s]))*)?$}i
-      end => {
-          controller: MiscController,
-          action: :delete_message
-      },
-      lambda do |message|
         regex_match message, %r{^\/bilov(?:@((?!^$)([^\s]))*)?$}i
       end => {
           controller: MiscController,
           action: :delete_message
-      },
-
-      lambda do |message|
-        regex_match message, %r{^\/distort(?:@((?!^$)([^\s]))*)?$}i
-      end => {
-          controller: ImageController,
-          action: :distort_reply
-      },
-      lambda do |message|
-        regex_match message, %r{^\/d(?:@((?!^$)([^\s]))*)?$}i
-      end => {
-          controller: ImageController,
-          action: :distort_reply
-      },
-      lambda do |message|
-        regex_match message, %r{^scale$}i
-      end => {
-          controller: ImageController,
-          action: :distort_reply
       },
       lambda do |message|
         regex_match message, %r{^fry$}i
       end => {
           controller: ImageController,
           action: :deepfry_reply
-      },
-      lambda do |message|
-        regex_match message, %r{^\/fry(?:@((?!^$)([^\s]))*)?$}i
-      end => {
-        controller: ImageController,
-        action: :deepfry_reply
-      },
-      lambda do |message|
-        # percentage integer
-        probability = 3
-        return false unless is_image? message
-        rand(1000) < probability
-      end => {
-          controller: ImageController,
-          action: :deepfry
       },
       lambda do |message|
         has_link?(message) && !is_reddit_link?(message)
@@ -187,13 +141,6 @@ module Routes
       end => {
         controller: MiscController,
         action: :close_keyboard
-      },
-      lambda do |message|
-        regex_match message, %r{^\/acorda(?:@((?!^$)([^\s]))*)? [[:alpha:]]+$}i
-      end => {
-          controller: MiscController,
-          action: :kill_process
       }
-
   }.freeze
 end

@@ -22,7 +22,8 @@ class GalleryDLService
     search_query = "ytsearch:#{@message.text.split(' ')[1..-1].join(' ')}"
     logger.info "Searching for '#{search_query}' and sending as #{format}"
     options = {
-      destination: @dir
+      destination: @dir,
+      "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}"
     }
     if format == 'audio'
       options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a][filesize<50M]/bestaudio[ext=m4a][filesize_approx<50M]'
@@ -82,7 +83,16 @@ class GalleryDLService
     urls.each do |url|
       begin
         fetch_metadata_from_url url
-      rescue Telegram::Bot::Exceptions::Base => e
+      rescue Telegram::Bot::Exceptions::Base, GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
+        if e.message.include?("instagram") && (e.message.include?("redirect to login page") || e.message.include?("401 Unauthorized"))
+          text = "Instagram redirect to login page. Invoking puppeteer to log back in"
+          logger.error(text)
+          @bilu.log_to_channel(text, @message)
+          output = `node #{File.join(__dir__, '..', 'puppeteer', 'instagram.js')}`
+          logger.info output
+          @bilu.log_to_channel(output, @message)
+          retry if output.include?("screenshot")
+        end
         errors << {
           url: url,
           exception: e
@@ -102,8 +112,8 @@ class GalleryDLService
     loop do
       options = {
         destination: @dir,
-        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}",
-        "cookies-from-browser": "chrome:#{File.join(Dir.home, 'puppeteer', 'user_data', 'Default')}"
+        "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}",
+        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}"
       }
       result = if @reddit_post.nil?
         logger.info "Trying to send media from #{url} with yt-dlp"
@@ -147,7 +157,7 @@ class GalleryDLService
   def fetch_metadata_from_url url
     options = {
       destination: @dir,
-      "cookies-from-browser": "chrome:#{File.join(Dir.home, 'puppeteer', 'user_data', 'Default')}"
+      "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}"
     }
     result = if @reddit_post.nil?
       logger.info "Trying to fetch metadata from #{url} with yt-dlp"
@@ -172,7 +182,7 @@ class GalleryDLService
     end
     if ((result.nil?) || (result.information.nil?) || (result.information.empty?))
       logger.error 'Failed to fetch metadata using gallery-dl'
-      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
+      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' if @reddit_post.nil?
 
       return
     end
@@ -180,7 +190,8 @@ class GalleryDLService
     send_medias_found_message(result, url)
   rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
     @bilu.log_to_channel(e.message, @message)
-    raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
+    #raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" if @reddit_post.nil?
+    raise e if @reddit_post.nil?
   ensure
     logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`.inspect}"
   end
@@ -206,7 +217,7 @@ class GalleryDLService
     when 'mangadex'
       "#{information[:manga]}\nChapter #{information[:chapter]}"
     when 'reddit'
-      "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}"
+      "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}#{"\n\n#{information[:selftext].squeeze("\n")}" unless information[:selftext].nil?}"
     when 'ytdl'
       case information[:subcategory].downcase
       when 'youtube', 'youtubesearch', 'youtubeclip'
