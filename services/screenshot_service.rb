@@ -8,6 +8,9 @@ class ScreenshotService
   def initialize(bilu, message)
     @bilu = bilu
     @message = message
+    @image_service = ImageService.new(bilu, message)
+    @gallerydl_service = GalleryDLService.new(bilu, message)
+    @dir = "#{__dir__}/#{Thread.current.object_id}"
   end
 
   def take_screenshot(_chat)
@@ -46,12 +49,6 @@ class ScreenshotService
         media: ScreenshotService.screenshot_url(url, options),
         caption: url
       }
-      # @bilu.bot.api.send_photo(
-      #   chat_id: msg.chat.id,
-      #   photo: ScreenshotService.screenshot_url(url, options),
-      #   reply_to_message_id: msg.message_id,
-      #   allow_sending_without_reply: true
-      # )
     end
     unless medias.empty?
       medias.each_slice(10) do |medias_slice|
@@ -65,6 +62,63 @@ class ScreenshotService
       end
     end
   end
+
+  def leia_isso(_chat)
+    msg = @message
+    urls = extract_urls msg
+    if urls.empty? && !@message.reply_to_message.nil?
+      msg = @message.reply_to_message
+      urls = extract_urls msg
+      if urls.empty?
+        @bilu.bot.api.send_message({ chat_id: msg.chat.id,
+                                     text: 'no URL found in this message',
+                                     reply_to_message_id: msg.message_id,
+                                     allow_sending_without_reply: true })
+        nil
+      end
+    end
+
+    @bilu.bot.api.send_chat_action(
+      chat_id: msg.chat.id,
+      action: 'upload_photo'
+    )
+    medias = urls.flat_map do |url|
+      leiaissourl = "https://leiaisso.net/#{url}"
+      logger.info("Taking screenshot of #{leiaissourl} and attaching to media group.")
+      options = {
+        response_type: 'json',
+        format: 'jpeg',
+        wait_until: 'network_idle',
+        element: '.post .wrap',
+        quality: 100,
+        width: 650
+      }
+      screenshot_url = ScreenshotService.screenshot_url(leiaissourl, options)
+      image_chunk_paths = @image_service.split_image_and_save(screenshot_url, 1080)
+      image_chunk_paths.map do |file_path|
+        upload = Faraday::UploadIO.new(file_path, 'image/jpeg')
+        {
+          type: 'photo',
+          media: @gallerydl_service.upload_to_telegram('photo', upload),
+          caption: leiaissourl
+        }
+      end
+    end
+    unless medias.empty?
+      medias.each_slice(10) do |medias_slice|
+        logger.info("Sending #{medias_slice.size} photos as media group.")
+        @bilu.bot.api.send_media_group(
+          chat_id: msg.chat.id,
+          reply_to_message_id: msg.message_id,
+          allow_sending_without_reply: true,
+          media: medias_slice
+        )
+      end
+    end
+  ensure
+    logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`.inspect}"
+  end
+
 
   def self.get_connection(token = nil)
     api_url = 'https://api.apiflash.com/v1'
@@ -118,4 +172,5 @@ class ScreenshotService
       end
     end
   end
+
 end
