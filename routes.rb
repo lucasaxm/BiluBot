@@ -101,6 +101,18 @@ module Routes
           action: :take_screenshot
       },
       lambda do |message|
+        regex_match message, %r{^\/leiaisso(?:@((?!^$)([^\s]))*)?$}i
+      end => {
+          controller: ScreenshotService,
+          action: :leia_isso
+      },
+      lambda do |message|
+        regex_match message, %r{^\/leiaisso(?:@((?!^$)([^\s]))*)? .*$}i
+      end => {
+          controller: ScreenshotService,
+          action: :leia_isso
+      },
+      lambda do |message|
         regex_match message, %r{^\/msg(?:all)?(?:@((?!^$)([^\s]))*)?$}i
       end => {
           controller: MiscController,

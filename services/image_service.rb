@@ -1,6 +1,7 @@
 require_relative "#{__dir__}/../logger/logging"
 require 'rmagick'
 require 'fastimage'
+require 'securerandom'
 
 class ImageService
   include Logging, Magick
@@ -9,6 +10,7 @@ class ImageService
   def initialize(bilu, message)
     @bilu = bilu
     @message = message
+    @dir = "#{__dir__}/#{Thread.current.object_id}"
   end
 
   def is_image? m
@@ -77,6 +79,27 @@ class ImageService
 
     FileUtils.rm(file_path) if File.exists? file_path
     logger.info "file #{file_path} deleted"
+  end
+
+  def split_image_and_save(image_url, chunk_height)
+    Dir.mkdir(@dir) unless Dir.exist?(@dir)
+    # Download the image to a local temporary file
+    image_path = download_image_from_url(image_url)
+
+    # Now read the image from the local file
+    img = Magick::Image.read(image_path).first
+    File.delete(image_path) # Clean up the temporary file after reading
+    image_chunks = []
+
+    0.step(img.rows, chunk_height) do |y|
+      height = [chunk_height, img.rows - y].min
+      chunk = img.crop(0, y, img.columns, height)
+      file_path = "#{@dir}/image_chunk_#{SecureRandom.uuid}.jpg"
+      chunk.write(file_path)
+      image_chunks << file_path
+    end
+
+    image_chunks
   end
 
   private
@@ -168,6 +191,28 @@ class ImageService
     end
     @bilu.bot.api.send_photo(options)
     logger.debug("END - Sending #{url} as photo through telegram API.")
+  end
+
+
+  def download_image_from_url(url)
+    # Create a temporary file
+    file_path = "temp_image_#{Time.now.to_i}.jpg"
+    URI.open(url) do |image|
+      File.open(file_path, 'wb') do |file|
+        file.write(image.read)
+      end
+    end
+    file_path
+  end
+
+  def split_image(img, chunk_height)
+    image_chunks = []
+    0.step(img.rows, chunk_height) do |y|
+      height = [chunk_height, img.rows - y].min
+      chunk = img.crop(0, y, img.columns, height)
+      image_chunks << chunk
+    end
+    image_chunks
   end
 
 end
