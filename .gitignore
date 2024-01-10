@@ -20,3 +20,4 @@ nohup.out
 .byebug_history
 config/youtubedl.conf
 lib/gallery-dl/processes/
+tokens.env

@@ -1,12 +1,10 @@
 require "bundler" 
 Bundler.setup(:default)
-require_relative "#{__dir__}/domain/request_weather"
 require_relative "#{__dir__}/logger/logging"
 require_relative "#{__dir__}/router"
 require_relative "#{__dir__}/db/bilu_schema"
 require 'telegram/bot'
 require 'redd'
-require 'forecast_io'
 require 'active_record'
 require 'pg'
 require "down"

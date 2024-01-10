@@ -6,8 +6,6 @@ Dir["#{__dir__}/controllers/*.rb"].each { |file| require_relative file }
 module Router
   include Logging
 
-  @botname = ENV['BILU_BOTNAME']
-
   def self.route_message(bot, message)
     routes = Routes.message_map.select { |a| a.call message }
     return nil if routes.nil?

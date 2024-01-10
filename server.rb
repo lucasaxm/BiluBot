@@ -5,9 +5,6 @@ require_relative 'bot'
 module Server
   include Logging
 
-  # MAX_ATTEMPTS = 2
-  # error_count = 0
-
   bot ||= Bilu::Bot.new
   Thread.abort_on_exception = true
 

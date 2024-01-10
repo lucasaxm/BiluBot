@@ -22,7 +22,8 @@ class GalleryDLService
     search_query = "ytsearch:#{@message.text.split(' ')[1..-1].join(' ')}"
     logger.info "Searching for '#{search_query}' and sending as #{format}"
     options = {
-      destination: @dir
+      destination: @dir,
+      "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}"
     }
     if format == 'audio'
       options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a][filesize<50M]/bestaudio[ext=m4a][filesize_approx<50M]'
@@ -79,10 +80,21 @@ class GalleryDLService
     end
     urls = extract_urls @message
     errors = []
+    results = []
     urls.each do |url|
       begin
-        fetch_metadata_from_url url
-      rescue Telegram::Bot::Exceptions::Base => e
+        result = fetch_metadata_from_url url
+        results << result unless result.nil?
+      rescue Telegram::Bot::Exceptions::Base, GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
+        if e.message.include?("instagram") && (e.message.include?("redirect to login page") || e.message.include?("401 Unauthorized"))
+          text = "Instagram redirect to login page. Invoking puppeteer to log back in"
+          logger.error(text)
+          @bilu.log_to_channel(text, @message)
+          output = `node #{File.join(__dir__, '..', 'puppeteer', 'instagram.js')}`
+          logger.info output
+          @bilu.log_to_channel(output, @message)
+          retry if output.include?("screenshot")
+        end
         errors << {
           url: url,
           exception: e
@@ -90,10 +102,10 @@ class GalleryDLService
         next
       end
     end
-#    if ((!errors.empty?) && (@reddit_post.nil?))
     if !errors.empty?
       raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{errors}" 
     end
+    send_medias_found_message(results)
   end
 
   def send_media_from_url url
@@ -102,8 +114,8 @@ class GalleryDLService
     loop do
       options = {
         destination: @dir,
-        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}",
-        "cookies-from-browser": "chrome:#{File.join(Dir.home, 'puppeteer', 'user_data', 'Default')}"
+        "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}",
+        range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}"
       }
       result = if @reddit_post.nil?
         logger.info "Trying to send media from #{url} with yt-dlp"
@@ -147,7 +159,7 @@ class GalleryDLService
   def fetch_metadata_from_url url
     options = {
       destination: @dir,
-      "cookies-from-browser": "chrome:#{File.join(Dir.home, 'puppeteer', 'user_data', 'Default')}"
+      "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}"
     }
     result = if @reddit_post.nil?
       logger.info "Trying to fetch metadata from #{url} with yt-dlp"
@@ -172,15 +184,16 @@ class GalleryDLService
     end
     if ((result.nil?) || (result.information.nil?) || (result.information.empty?))
       logger.error 'Failed to fetch metadata using gallery-dl'
-      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' unless @reddit_post.nil?
+      raise Telegram::Bot::Exceptions::Base, 'GalleryDL Service error' if @reddit_post.nil?
 
       return
     end
     logger.info "#{result.information.size} medias found from #{url}"
-    send_medias_found_message(result, url)
+    result
   rescue GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
     @bilu.log_to_channel(e.message, @message)
-    raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" unless @reddit_post.nil?
+    #raise Telegram::Bot::Exceptions::Base, "GalleryDL Service error #{e.class}" if @reddit_post.nil?
+    raise e if @reddit_post.nil?
   ensure
     logger.warn "cleaning thread local dir #{`rm -rf #{@dir}`.inspect}"
   end
@@ -206,7 +219,7 @@ class GalleryDLService
     when 'mangadex'
       "#{information[:manga]}\nChapter #{information[:chapter]}"
     when 'reddit'
-      "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}"
+      "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}#{"\n\n#{information[:selftext].squeeze("\n")}" unless information[:selftext].nil?}"
     when 'ytdl'
       case information[:subcategory].downcase
       when 'youtube', 'youtubesearch', 'youtubeclip'
@@ -244,7 +257,8 @@ class GalleryDLService
     full_caption
   end
 
-  def send_medias_found_message(result, url)
+  def send_medias_found_message(results)
+    return if (results.nil? || results.empty?)
     reply_markup = Telegram::Bot::Types::InlineKeyboardMarkup.new(
       inline_keyboard: [[
         Telegram::Bot::Types::InlineKeyboardButton.new(
@@ -257,10 +271,11 @@ class GalleryDLService
         )
       ]]
     )
+    total_medias = results.map { |result| result.information&.size.to_i }.sum
     @bilu.bot.api.send_message({
       chat_id: @message.chat.id,
       reply_to_message_id: @message.message_id,
-      text: "Download #{result.information.size} media#{'s' if result.information.size > 1}?",
+      text: "Download #{total_medias} media#{'s' if total_medias > 1}?",
       reply_markup: reply_markup
     })
   end
