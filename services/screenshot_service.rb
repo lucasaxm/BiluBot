@@ -1,6 +1,5 @@
 require_relative "#{__dir__}/../logger/logging"
 require 'faraday'
-require 'faraday_middleware'
 
 class ScreenshotService
   include Logging

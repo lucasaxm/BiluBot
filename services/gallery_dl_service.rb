@@ -199,13 +199,28 @@ class GalleryDLService
   end
 
   def fetch_metadata_callback
+    if @message.data == "noop"
+      return
+    end
+    callback_hash = @message.to_h
     split_data = @message.data.split(' ')
-    return unless "#{@message.from.id}" == "#{split_data[3]}"
-    misc_service = MiscService.new(@bilu, @message.message)
+    if ("#{split_data[2]}" == 'yes')
+      @bilu.bot.api.edit_message_text(
+        chat_id: @message.message.chat.id,
+        message_id: @message.message.message_id,
+        text: "Downloading for #{@message.from.username.nil? ? @message.from.first_name : "@#{@message.from.username}"}",
+        reply_markup: Telegram::Bot::Types::InlineKeyboardMarkup.new(
+           inline_keyboard: [[Telegram::Bot::Types::InlineKeyboardButton.new(text: "...", callback_data: "noop")]]
+        )
+      )
+      @message = @message.message.reply_to_message
+      send_media
+    elsif ("#{@message.from.id}" != "#{split_data[3]}")
+      @bilu.bot.api.answer_callback_query(callback_query_id: @message.id, text: "quem te comeu?")
+      return
+    end
+    misc_service = MiscService.new(@bilu, callback_hash[:message])
     misc_service.delete_message
-    return unless "#{split_data[2]}" == 'yes'
-    @message = @message.message.reply_to_message
-    send_media
   end
 
   def build_caption(information)

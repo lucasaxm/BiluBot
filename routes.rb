@@ -21,6 +21,10 @@ module Routes
       !is_callback_query?(message) && !message.entities.nil? && !message.entities.empty? && message.entities.any? { |entity| ['url','text_link'].include? entity.type }
     end
 
+    def is_via_bilutempobot?(message)
+      !message.via_bot.nil? && message.via_bot.username == 'bilutempobot'
+    end
+
     def is_reddit_link?(message)
       regex_match(message, %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$})
     end
@@ -119,7 +123,7 @@ module Routes
           action: :deepfry_reply
       },
       lambda do |message|
-        has_link?(message) && !is_reddit_link?(message)
+        has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
       end => {
           controller: GalleryDLController,
           action: :fetch_metadata
