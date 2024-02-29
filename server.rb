@@ -1,4 +1,6 @@
 require 'dotenv'
+require 'byebug'
+require 'awesome_print'
 Dotenv.load("#{__dir__}/tokens.env")
 require_relative 'bot'
 
@@ -16,7 +18,7 @@ module Server
   ]
 
   bot.listen do |message|
-    if (message.nil?) || (!supported_messages.include? message.class)
+    if (message.nil?) || (!supported_messages.include? message.class) || (!message.to_h['edit_date'].nil?)
       next
     end
 
