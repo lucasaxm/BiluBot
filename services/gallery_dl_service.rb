@@ -392,6 +392,7 @@ class GalleryDLService
       type: 'photo',
       media: upload_to_telegram('photo', upload)
     }
+    media[:has_spoiler] = (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
     media
   end
@@ -411,6 +412,7 @@ class GalleryDLService
       media: upload_to_telegram('video', upload, options),
       supports_streaming: true
     }
+    media[:has_spoiler] = (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
     media
   end
@@ -438,6 +440,7 @@ class GalleryDLService
       type: 'document',
       media: upload_to_telegram('animation', upload, options),
     }
+    media[:has_spoiler] = (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
     media
   end
