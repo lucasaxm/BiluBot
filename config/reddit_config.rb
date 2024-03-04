@@ -21,9 +21,7 @@ module RedditConfig
 
   # Hash with needed information to create a session using Redd.it
   @reddit_config = {
-    client_id: ENV['BILU_REDDIT_CLIENT_ID_LOGIN'],
-    secret: ENV['BILU_REDDIT_SECRET_LOGIN'],
-    username: ENV['BILU_REDDIT_USERNAME'],
-    password: ENV['BILU_REDDIT_PASSWORD']
+    client_id: ENV['BILU_REDDIT_CLIENT_ID_DL'],
+    secret: ENV['BILU_REDDIT_CLIENT_SECRET_DL']
   }
 end
