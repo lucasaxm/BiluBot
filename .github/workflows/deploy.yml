@@ -15,7 +15,7 @@ jobs:
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
-          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          echo -e "$DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SSH_SERVER }} >> ~/.ssh/known_hosts
           eval $(ssh-agent -s)
