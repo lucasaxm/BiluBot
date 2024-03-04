@@ -16,6 +16,7 @@ module GalleryDLConfig
       filename: '{filename|id}.{extension|ext}',
       reddit: {
         "client-id": ENV['BILU_REDDIT_CLIENT_ID_DL'],
+        "client-secret": ENV['BILU_REDDIT_CLIENT_SECRET_DL'],
         "user-agent": "Python:#{ENV['BILU_REDDIT_APP_NAME_DL']}:v1.0 (by /u/#{ENV['BILU_REDDIT_USERNAME']})"
       },
       twitter: {
