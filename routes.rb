@@ -26,7 +26,12 @@ module Routes
     end
 
     def is_reddit_link?(message)
-      regex_match(message, %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$})
+      existing_pattern = %r{^(https?:\/\/(www\.)?)?reddit\.com\S*\/comments\/\w+\S*$}
+      new_pattern = %r{^(https?:\/\/(www\.)?)?reddit\.com\/r\/([^/?#]+)\/s\/([a-zA-Z0-9]{10})}
+
+      combined_pattern = Regexp.union(existing_pattern, new_pattern)
+
+      regex_match(message, combined_pattern)
     end
 
     private
@@ -68,12 +73,12 @@ module Routes
         controller: RedditController,
         action: :ban_subreddit
       },
-      lambda do |message|
-        is_reddit_link?(message)
-      end => {
-          controller: RedditController,
-          action: :get_media_from_url
-      },
+      # lambda do |message|
+      #   is_reddit_link?(message)
+      # end => {
+      #     controller: RedditController,
+      #     action: :get_media_from_url
+      # },
       lambda do |message|
         regex_match message, %r{^\/spam(?:@((?!^$)([^\s]))*)?$}i
       end => {
@@ -123,7 +128,8 @@ module Routes
           action: :deepfry_reply
       },
       lambda do |message|
-        has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
+        # has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
+        has_link?(message) && !is_via_bilutempobot?(message)
       end => {
           controller: GalleryDLController,
           action: :fetch_metadata

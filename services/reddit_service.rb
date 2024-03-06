@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 require 'open-uri'
 require 'telegram/bot'
+require 'net/http'
+require 'uri'
 require_relative "#{__dir__}/../lib/gallery_dl"
 require_relative "#{__dir__}/../logger/logging"
 require_relative "#{__dir__}/../config/reddit_config"
@@ -190,7 +192,8 @@ class RedditService
   end
 
   def get_media_from_url(chat)
-    words = @message.text.split('/')
+    final_url = resolve_redirect(@message.text, ENV['BILU_REDDIT_CLIENT_ID_DL'], ENV['BILU_REDDIT_CLIENT_SECRET_DL'])
+    words = final_url.split('/')
     comments_index = words.find_index('comments')
     return if comments_index.nil? || words[comments_index + 1].nil?
 
@@ -221,6 +224,30 @@ class RedditService
   end
 
   private
+
+  def resolve_redirect(url, username, password, limit = 10)
+    raise ArgumentError, 'Too many HTTP redirects' if limit == 0
+
+    uri = URI(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = (uri.scheme == 'https') # Enable SSL/TLS if HTTPS
+
+    request = Net::HTTP::Get.new(uri.request_uri)
+    request.basic_auth(username, password) # Add basic authentication
+
+    response = http.request(request)
+
+    case response
+    when Net::HTTPSuccess then
+      uri.to_s
+    when Net::HTTPRedirection then
+      location = response['location']
+      puts "Redirected to #{location}"
+      resolve_redirect(location, username, password, limit - 1) # Pass credentials along
+    else
+      response.value
+    end
+  end
 
   def get_subreddit_from_db(subreddit_name)
     subreddit = @reddit_session.subreddit(subreddit_name)
@@ -441,7 +468,7 @@ class RedditService
     options = {
       response_type: 'json',
       format: 'jpeg',
-      cookies: "reddit_session=#{ENV['BILU_REDDIT_SESSION']};over18=1",
+      cookies: "over18=1",
       wait_until: 'dom_loaded',
     }
     case style

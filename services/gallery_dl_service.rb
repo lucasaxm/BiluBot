@@ -22,8 +22,7 @@ class GalleryDLService
     search_query = "ytsearch:#{@message.text.split(' ')[1..-1].join(' ')}"
     logger.info "Searching for '#{search_query}' and sending as #{format}"
     options = {
-      destination: @dir,
-      "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}"
+      destination: @dir
     }
     if format == 'audio'
       options[:o] = 'extractor.ytdl.YoutubeSearch.format=bestaudio[ext=m4a][filesize<50M]/bestaudio[ext=m4a][filesize_approx<50M]'
@@ -114,7 +113,6 @@ class GalleryDLService
     loop do
       options = {
         destination: @dir,
-        "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}",
         range: "#{(page-1)*chunk_size+1}-#{page*chunk_size}"
       }
       result = if @reddit_post.nil?
@@ -158,8 +156,7 @@ class GalleryDLService
 
   def fetch_metadata_from_url url
     options = {
-      destination: @dir,
-      "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}"
+      destination: @dir
     }
     result = if @reddit_post.nil?
       logger.info "Trying to fetch metadata from #{url} with yt-dlp"
@@ -234,7 +231,7 @@ class GalleryDLService
     when 'mangadex'
       "#{information[:manga]}\nChapter #{information[:chapter]}"
     when 'reddit'
-      "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{information[:title]}#{"\n\n#{information[:selftext].squeeze("\n")}" unless information[:selftext].nil?}"
+      "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{escape_text(information[:title])}#{"\n\n||#{escape_text(information[:selftext].squeeze("\n"))}||" unless information[:selftext].nil?}"
     when 'ytdl'
       case information[:subcategory].downcase
       when 'youtube', 'youtubesearch', 'youtubeclip'
@@ -265,8 +262,8 @@ class GalleryDLService
         "#{@reddit_post.over_18? ? "\u{1F51E} NSFW " : ''}#{@reddit_post.spoiler? ? "\u{26A0} SPOILER" : ''}\n#{@reddit_post.title}"
       end
     end
-    if (!full_caption.nil?) && (full_caption.length > 500)
-      return full_caption[0..499]+'...'
+    if (!full_caption.nil?) && (full_caption.length > 3000)
+      return full_caption[0..2999]+'...'
     end
 
     full_caption
@@ -322,13 +319,6 @@ class GalleryDLService
       )
       messages_sent.push(*response['result'])
     end
-    return if @reddit_post.nil? || messages_sent.empty?
-    @bilu.bot.api.send_message({
-                                 chat_id: @message.chat.id,
-                                 reply_to_message_id: messages_sent.first['message_id'],
-                                 text: "#{messages_sent.size} media#{'s' if messages_sent.size > 1} found",
-                                 reply_markup: RedditService.reddit_post_reply_markup(@reddit_post)
-                               })
   end
 
   def upload_to_telegram(type, upload, options={})
@@ -392,8 +382,9 @@ class GalleryDLService
       type: 'photo',
       media: upload_to_telegram('photo', upload)
     }
-    media[:has_spoiler] = (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
+    media[:has_spoiler] = (information[:over_18] || information[:spoiler]) || (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
+    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
     media
   end
 
@@ -412,8 +403,9 @@ class GalleryDLService
       media: upload_to_telegram('video', upload, options),
       supports_streaming: true
     }
-    media[:has_spoiler] = (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
+    media[:has_spoiler] = (information[:over_18] || information[:spoiler]) || (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
+    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
     media
   end
 
@@ -442,6 +434,7 @@ class GalleryDLService
     }
     media[:has_spoiler] = (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
+    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
     media
   end
 
@@ -466,6 +459,7 @@ class GalleryDLService
       supports_streaming: true
     }
     media[:caption] = caption unless caption.nil?
+    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
 
     media
   end
@@ -502,6 +496,10 @@ class GalleryDLService
         url_entity['url']
       end
     end
+  end
+
+  def escape_text(text)
+    text.gsub(/[_*\[\]()~`>#\+\-\\=|{}\.!]/) { |match| "\\#{match}" }
   end
 
 end

@@ -1,4 +1,5 @@
 require 'json'
+require 'base64'
 module GalleryDLConfig
   class << self
     def save_config
@@ -11,7 +12,6 @@ module GalleryDLConfig
   end
 
   @default = {
-    "cookies-from-browser": "chrome:#{File.join(__dir__, '..', 'puppeteer', 'user_data', 'Default')}",
     extractor: {
       filename: '{filename|id}.{extension|ext}',
       reddit: {
@@ -39,7 +39,11 @@ module GalleryDLConfig
       }
     },
     downloader: {
-      'filesize-max': '50M'
+      'filesize-max': '50M',
+      ytdl: {
+        module: "yt_dlp",
+        "cmdline-args": "--add-headers 'Authorization:Basic #{Base64::encode64("#{ENV['BILU_REDDIT_CLIENT_ID_DL']}:#{ENV['BILU_REDDIT_SECRET_ID_DL']}")}'"
+      }
     }
   }
 
