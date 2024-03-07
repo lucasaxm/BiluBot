@@ -1,5 +1,6 @@
 require 'telegram/bot'
 require 'timeout'
+require 'nokogiri'
 require_relative "#{__dir__}/../config/gallery_dl_config"
 require_relative "#{__dir__}/../lib/gallery_dl"
 require_relative "#{__dir__}/../logger/logging"
@@ -85,15 +86,6 @@ class GalleryDLService
         result = fetch_metadata_from_url url
         results << result unless result.nil?
       rescue Telegram::Bot::Exceptions::Base, GalleryDL::GalleryDlError, GalleryDL::GalleryDlTimeout => e
-        if e.message.include?("instagram") && (e.message.include?("redirect to login page") || e.message.include?("401 Unauthorized"))
-          text = "Instagram redirect to login page. Invoking puppeteer to log back in"
-          logger.error(text)
-          @bilu.log_to_channel(text, @message)
-          output = `node #{File.join(__dir__, '..', 'puppeteer', 'instagram.js')}`
-          logger.info output
-          @bilu.log_to_channel(output, @message)
-          retry if output.include?("screenshot")
-        end
         errors << {
           url: url,
           exception: e
@@ -108,6 +100,11 @@ class GalleryDLService
   end
 
   def send_media_from_url url
+    insta_hash = nil
+    if url.include?('instagram.com')
+      insta_hash = ddinstagram_media(url)
+      url = insta_hash[:url] unless insta_hash[:url].nil?
+    end
     chunk_size=10
     page=1
     loop do
@@ -143,6 +140,13 @@ class GalleryDLService
         return
       end
       logger.info "page #{page}: #{result.information.size} medias found from #{url}"
+      unless insta_hash.nil?
+        result.information.each do |info|
+          info[:category] = 'instagram'
+          info[:username] = insta_hash[:username]
+          info[:description] = insta_hash[:description]
+        end
+      end
       send_gallerydl_media(result)
       break if result.information.size < chunk_size
       page+=1
@@ -155,6 +159,11 @@ class GalleryDLService
   end
 
   def fetch_metadata_from_url url
+    insta_hash = nil
+    if url.include?('instagram.com')
+      insta_hash = ddinstagram_media(url)
+      url = insta_hash[:url] unless insta_hash[:url].nil?
+    end
     options = {
       destination: @dir
     }
@@ -225,7 +234,7 @@ class GalleryDLService
     when 'twitter'
       "#{information[:author][:nick]}(@#{information[:author][:name]}):\n#{information[:content]}"
     when 'instagram'
-      "#{information[:fullname]}(@#{information[:username]}):\n#{information[:description]}"
+      "#{information[:username]}:\n#{information[:description]}"
     when 'tiktok'
       "#{information[:title]}:\n#{information[:description]}"
     when 'mangadex'
@@ -500,6 +509,44 @@ class GalleryDLService
 
   def escape_text(text)
     text.gsub(/[_*\[\]()~`>#\+\-\\=|{}\.!]/) { |match| "\\#{match}" }
+  end
+
+  def ddinstagram_media(url)
+    # Correct the URL if necessary
+    unless url.include?('ddinstagram.com')
+      url.sub!('instagram.com', 'ddinstagram.com') if url.include?('instagram.com')
+    end
+
+    # Parse the URL
+    uri = URI.parse(url)
+
+    # Perform a GET request to the URL
+    response = Net::HTTP.get_response(uri)
+
+    # Parse the response body with Nokogiri to search for meta tags
+    if response.is_a?(Net::HTTPSuccess)
+      doc = Nokogiri::HTML(response.body)
+
+      # Fetch the meta tag contents
+      username = doc.at("meta[name='twitter:title']")&.attribute('content')&.value
+      description = doc.at("meta[property='og:description']")&.attribute('content')&.value
+      video = doc.at("meta[property='og:video']")
+      image = video.nil? ? doc.at("meta[property='og:image']") : nil
+      media_url = if video && video.attribute('content').value.present?
+                    URI.join(uri, video.attribute('content').value).to_s
+                  elsif image && image.attribute('content').value.present?
+                    URI.join(uri, image.attribute('content').value).to_s
+                  end
+
+      # Return a hash with collected data
+      {
+        username: username,
+        description: description,
+        url: media_url
+      }.compact # Use compact to remove any nil values from the hash
+    else
+      logger.error "Failed to retrieve the ddinstagram page, response code was #{response.code}"
+    end
   end
 
 end
