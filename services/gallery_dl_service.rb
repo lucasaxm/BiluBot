@@ -231,7 +231,11 @@ class GalleryDLService
     when 'mangadex'
       "#{information[:manga]}\nChapter #{information[:chapter]}"
     when 'reddit'
-      "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{escape_text(information[:title])}#{"\n\n||#{escape_text(information[:selftext].squeeze("\n"))}||" unless information[:selftext].nil?}"
+      if (information[:over_18] || information[:spoiler])
+        "#{information[:over_18] ? "\u{1F51E} NSFW " : ''}#{information[:spoiler] ? "\u{26A0} SPOILER" : ''}\n#{escape_text(information[:title])}#{"\n\n||#{escape_text(information[:selftext].squeeze("\n"))}||" unless information[:selftext].nil?}"
+      else
+        "#{information[:title]}#{"\n\n#{information[:selftext].squeeze("\n")}" unless information[:selftext].nil?}"
+      end
     when 'ytdl'
       case information[:subcategory].downcase
       when 'youtube', 'youtubesearch', 'youtubeclip'
@@ -382,9 +386,11 @@ class GalleryDLService
       type: 'photo',
       media: upload_to_telegram('photo', upload)
     }
-    media[:has_spoiler] = (information[:over_18] || information[:spoiler]) || (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
-    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
+    if (information[:over_18] || information[:spoiler])
+      media[:has_spoiler] = true
+      media[:parse_mode] = 'MarkdownV2'
+    end
     media
   end
 
@@ -403,9 +409,11 @@ class GalleryDLService
       media: upload_to_telegram('video', upload, options),
       supports_streaming: true
     }
-    media[:has_spoiler] = (information[:over_18] || information[:spoiler]) || (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
-    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
+    if (information[:over_18] || information[:spoiler])
+      media[:has_spoiler] = true
+      media[:parse_mode] = 'MarkdownV2'
+    end
     media
   end
 
@@ -432,9 +440,11 @@ class GalleryDLService
       type: 'document',
       media: upload_to_telegram('animation', upload, options),
     }
-    media[:has_spoiler] = (!@reddit_post.nil? && (@reddit_post.over_18? || @reddit_post.spoiler?))
     media[:caption] = caption unless caption.nil?
-    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
+    if (information[:over_18] || information[:spoiler])
+      media[:has_spoiler] = true
+      media[:parse_mode] = 'MarkdownV2'
+    end
     media
   end
 
@@ -459,7 +469,9 @@ class GalleryDLService
       supports_streaming: true
     }
     media[:caption] = caption unless caption.nil?
-    media[:parse_mode] = 'MarkdownV2' if (!caption.nil? && information[:category].downcase == 'reddit')
+    if (information[:over_18] || information[:spoiler])
+      media[:parse_mode] = 'MarkdownV2'
+    end
 
     media
   end
