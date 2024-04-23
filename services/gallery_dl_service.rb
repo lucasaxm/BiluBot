@@ -498,9 +498,7 @@ class GalleryDLService
       entity['type'] == 'url' || entity['type'] == 'text_link'
     end.map do |url_entity|
       if url_entity['type'] == 'url'
-        msg['text'].chars.map do |x|
-          x.bytes.each_slice(2).to_a
-        end.flatten(1)[url_entity['offset'], url_entity['offset'] + url_entity['length']].flatten.pack('C*')
+        msg['text'][url_entity['offset'], url_entity['length']]
       else # text_link
         url_entity['url']
       end
