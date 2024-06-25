@@ -263,6 +263,8 @@ class GalleryDLService
         "#{information[:creator]}(@#{information[:uploader]}):\n#{information[:description]}"
       when 'steam'
         "#{information[:webpage_url_basename]}"
+      when 'soundcloud'
+        "#{information[:description]}"
       when 'generic'
         information[:fulltitle]
       else
@@ -467,10 +469,16 @@ class GalleryDLService
     if File.exists? thumb
       options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
     end
-    if (information[:category].downcase == 'ytdl') && (['youtube','youtubesearch'].include? information[:subcategory].downcase)
-      options['performer'] = information[:channel]
-      options['title'] = information[:title]
-      options['duration'] = information[:duration]
+    if (information[:category].downcase == 'ytdl')
+      if ['youtube','youtubesearch'].include? information[:subcategory].downcase
+        options['performer'] = information[:channel]
+        options['title'] = information[:title]
+        options['duration'] = information[:duration]
+      elsif information[:subcategory].downcase == 'soundcloud'
+        options['performer'] = information[:uploader]
+        options['title'] = information[:title]
+        options['duration'] = information[:duration]
+      end
     end
     media = {
       type: 'audio',
