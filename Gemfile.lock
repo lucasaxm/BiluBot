@@ -73,10 +73,13 @@ GEM
     multipart-post (2.4.0)
     net-http (0.4.1)
       uri
+    nokogiri (1.16.2-x86_64-linux)
+      racc (~> 1.4)
     observer (0.1.2)
     pg (1.5.5)
     pkg-config (1.5.6)
     public_suffix (5.0.4)
+    racc (1.7.3)
     rmagick (5.4.4)
       observer (~> 0.1)
       pkg-config (~> 1.4)
@@ -116,6 +119,7 @@ DEPENDENCIES
   fileutils
   forecast_io
   mime-types (~> 3.4)
+  nokogiri (~> 1.16)
   pg (>= 0.19.0.beta)
   redd!
   rmagick
