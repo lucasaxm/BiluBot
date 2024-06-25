@@ -23,3 +23,5 @@ gem 'streamio-ffmpeg'
 gem "terrapin", "~> 0.6.0"
 
 gem "mime-types", "~> 3.4"
+
+gem "nokogiri", "~> 1.16"
