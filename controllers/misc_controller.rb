@@ -12,6 +12,10 @@ class MiscController
     @service.delete_reply
   end
 
+  def sudo_delete_reply(chat)
+    @service.sudo_delete_reply
+  end
+
   def delete_message(chat)
     @service.delete_message
   end

@@ -245,6 +245,8 @@ class GalleryDLService
       else
         "#{information[:title]}#{"\n\n#{information[:selftext].squeeze("\n")}" unless information[:selftext].nil?}"
       end
+    when 'bluesky'
+      "#{information[:author][:displayName]}(@#{information[:author][:handle]}):\n#{information[:text]}"
     when 'ytdl'
       case information[:subcategory].downcase
       when 'youtube', 'youtubesearch', 'youtubeclip'
@@ -277,8 +279,8 @@ class GalleryDLService
         "#{@reddit_post.over_18? ? "\u{1F51E} NSFW " : ''}#{@reddit_post.spoiler? ? "\u{26A0} SPOILER" : ''}\n#{@reddit_post.title}"
       end
     end
-    if (!full_caption.nil?) && (full_caption.length > 3000)
-      return full_caption[0..2999]+'...'
+    if (!full_caption.nil?) && (full_caption.length > 1024)
+      return full_caption[0..1020]+'...'
     end
 
     full_caption

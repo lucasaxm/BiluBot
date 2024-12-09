@@ -72,6 +72,22 @@ class MiscService
     end
   end
 
+  def sudo_delete_reply
+    if @message.from.id == 470438197
+      @bilu.delete_message(@message.reply_to_message)
+      logger.info('message deleted')
+    end
+    @bilu.delete_message(@message)
+  rescue Telegram::Bot::Exceptions::ResponseError => e
+    if e.message.include? 'message can\'t be deleted'
+      logger.error('message can\'t be deleted')
+    elsif e.message.include? 'error_code: "400"'
+      logger.error('message no longer exists')
+    else
+      throw e
+    end
+  end
+
   def delete_message
     @bilu.delete_message(@message)
     logger.info('message deleted')
