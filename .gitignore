@@ -21,3 +21,6 @@ nohup.out
 config/youtubedl.conf
 lib/gallery-dl/processes/
 tokens.env
+
+# local sqlite database
+db/*.sqlite3

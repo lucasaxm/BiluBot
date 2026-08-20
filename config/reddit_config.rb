@@ -1,17 +1,21 @@
+require_relative "#{__dir__}/../lib/reddit/session"
+require_relative "#{__dir__}/../lib/reddit/errors"
+
 ##
 # Configuration for the RedditController
 #
 module RedditConfig
   include Logging
-  class << self
-    attr_reader :reddit_config
-  end
 
-  # Create a new reddit session using Redd class
+  # Create a new reddit session using our own Reddit::Session class
   def self.new_reddit_session
     retries_redd ||= 0
     begin
-      return Redd.it(@reddit_config)
+      return Reddit::Session.new(
+        client_id: ENV['BILU_REDDIT_CLIENT_ID_DL'],
+        secret: ENV['BILU_REDDIT_CLIENT_SECRET_DL'],
+        user_agent: user_agent
+      )
     rescue StandardError => e
       logger.error("Exception Class: [#{e.class.name}]")
       logger.error("Exception Message: [#{e.message}']")
@@ -19,9 +23,10 @@ module RedditConfig
     end
   end
 
-  # Hash with needed information to create a session using Redd.it
-  @reddit_config = {
-    client_id: ENV['BILU_REDDIT_CLIENT_ID_DL'],
-    secret: ENV['BILU_REDDIT_CLIENT_SECRET_DL']
-  }
+  # Reddit requires a unique, descriptive User-Agent for API access
+  def self.user_agent
+    app_name = ENV['BILU_REDDIT_APP_NAME_DL'] || 'bilubot'
+    username = ENV['BILU_REDDIT_USERNAME'] || 'unknown'
+    "ruby:#{app_name}:v1.0 (by /u/#{username})"
+  end
 end

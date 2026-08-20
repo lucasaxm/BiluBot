@@ -73,12 +73,12 @@ module Routes
         controller: RedditController,
         action: :ban_subreddit
       },
-      # lambda do |message|
-      #   is_reddit_link?(message)
-      # end => {
-      #     controller: RedditController,
-      #     action: :get_media_from_url
-      # },
+      lambda do |message|
+        is_reddit_link?(message)
+      end => {
+          controller: RedditController,
+          action: :get_media_from_url
+      },
       lambda do |message|
         regex_match message, %r{^\/spam(?:@((?!^$)([^\s]))*)?$}i
       end => {
@@ -128,8 +128,7 @@ module Routes
           action: :deepfry_reply
       },
       lambda do |message|
-        # has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
-        has_link?(message) && !is_via_bilutempobot?(message)
+        has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
       end => {
           controller: GalleryDLController,
           action: :fetch_metadata

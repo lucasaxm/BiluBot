@@ -86,7 +86,7 @@ module GalleryDL
       begin
         Timeout::timeout(@timeout, nil, "Command #{command} run timeout. Killing process #{child_pid}.") do
           # puts `ps --pid #{child_pid} -o state | tail -1` bnmʋ
-          while File.exists?(lockfile)
+          while File.exist?(lockfile)
             # puts `ps --pid #{child_pid} -o state | tail -1`
           end
         end

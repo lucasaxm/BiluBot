@@ -1,12 +1,14 @@
 require "bundler" 
 Bundler.setup(:default)
+# A present-but-blank DATABASE_URL (e.g. from tokens.env) crashes ActiveRecord at
+# require-time, before our own sqlite fallback ever runs. Strip it first.
+ENV.delete('DATABASE_URL') if ENV['DATABASE_URL'].to_s.strip.empty?
 require_relative "#{__dir__}/logger/logging"
 require_relative "#{__dir__}/router"
 require_relative "#{__dir__}/db/bilu_schema"
 require 'telegram/bot'
-require 'redd'
 require 'active_record'
-require 'pg'
+require 'sqlite3'
 require "down"
 require "fileutils"
 require 'streamio-ffmpeg'
@@ -30,7 +32,7 @@ module Bilu
         end
       end.parse!
       @bot = Telegram::Bot::Client.new(@token)
-      ActiveRecord::Base.establish_connection ENV['DATABASE_URL']
+      ActiveRecord::Base.establish_connection(ENV.fetch('DATABASE_URL', BiluSchema.default_database_url))
       logger.info("server started as #{@bot.api.get_me['result']['username']}")
     end
 

@@ -1,6 +1,9 @@
 require 'telegram/bot'
 require 'timeout'
 require 'nokogiri'
+require 'net/http'
+require 'active_support/core_ext/object/try'
+require 'active_support/core_ext/object/blank'
 require_relative "#{__dir__}/../config/gallery_dl_config"
 require_relative "#{__dir__}/../lib/gallery_dl"
 require_relative "#{__dir__}/../logger/logging"
@@ -413,7 +416,7 @@ class GalleryDLService
     upload = Faraday::UploadIO.new(filepath, 'video/mp4')
     options = {}
     thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
-    if File.exists? thumb
+    if File.exist? thumb
       options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
     end
     options['duration'] = information[:duration].to_i unless information[:duration].nil?
@@ -445,7 +448,7 @@ class GalleryDLService
     end
     options = {}
     thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
-    if File.exists? thumb
+    if File.exist? thumb
       options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
     end
     options['duration'] = information[:duration].to_i unless information[:duration].nil?
@@ -468,7 +471,7 @@ class GalleryDLService
     upload = Faraday::UploadIO.new(filepath, 'audio/m4a')
     options = {}
     thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
-    if File.exists? thumb
+    if File.exist? thumb
       options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
     end
     if (information[:category].downcase == 'ytdl')

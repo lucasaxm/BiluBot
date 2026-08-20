@@ -77,7 +77,7 @@ class ImageService
     logger.info('deep fried photo sent.')
 
 
-    FileUtils.rm(file_path) if File.exists? file_path
+    FileUtils.rm(file_path) if File.exist? file_path
     logger.info "file #{file_path} deleted"
   end
 
@@ -118,7 +118,7 @@ class ImageService
     send_local_image(filepath, m)
     logger.info('scaled photo sent.')
 
-    FileUtils.rm(filepath) if File.exists? filepath
+    FileUtils.rm(filepath) if File.exist? filepath
     logger.info "file #{filepath} deleted"
   end
 

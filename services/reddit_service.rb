@@ -3,7 +3,9 @@ require 'open-uri'
 require 'telegram/bot'
 require 'net/http'
 require 'uri'
+require 'tmpdir'
 require_relative "#{__dir__}/../lib/gallery_dl"
+require_relative "#{__dir__}/../lib/reddit/video_downloader"
 require_relative "#{__dir__}/../logger/logging"
 require_relative "#{__dir__}/../config/reddit_config"
 require_relative "#{__dir__}/../models/reddit_post"
@@ -27,8 +29,8 @@ class RedditService
 
   def get_media_from_subreddit_callback(chat)
     newtext = @message.data.split(' ')[1..-1].join(' ')
-    @message = @message.message
-    @message.text = newtext
+    # Telegram types are immutable structs, so rebuild the message with the new text
+    @message = @message.message.new(text: newtext)
     get_media_from_subreddit(chat)
   end
 
@@ -127,24 +129,24 @@ class RedditService
       )
       # hot_posts = get_subreddit_hot_media_posts(subreddit_name)
       hot_posts = get_subreddit_hot_posts(subreddit_name)
-    rescue Redd::Errors::NotFound, JSON::ParserError => e
+    rescue Reddit::Errors::NotFound, JSON::ParserError => e
       answer = "subreddit #{subreddit_name} not found."
       logger.error(answer)
       logger.error("Exception Class: [#{e.class.name}]")
       logger.error("Exception Message: [#{e.message}']")
       @bilu.reply_with_text(answer, @message)
       return
-    rescue Redd::Errors::InvalidAccess => e
+    rescue Reddit::Errors::Unauthorized => e
       error_count += 1
-      @reddit_session.client.refresh
+      @reddit_session.refresh
       if error_count < 5
         logger.warn('Reddit session refreshed. Retrying.')
         sleep(1)
         retry
       end
       return
-    rescue Redd::Errors::Forbidden => e
-      answer = "Access to this subreddit is forbidden. Reason: #{e.message.split[1]}"
+    rescue Reddit::Errors::Forbidden => e
+      answer = "Access to this subreddit is forbidden. Reason: #{e.message}"
       @bilu.reply_with_text(answer, @message)
       return
     end
@@ -192,13 +194,17 @@ class RedditService
   end
 
   def get_media_from_url(chat)
-    final_url = resolve_redirect(@message.text, ENV['BILU_REDDIT_CLIENT_ID_DL'], ENV['BILU_REDDIT_CLIENT_SECRET_DL'])
+    reddit_url = extract_reddit_url(@message.text)
+    return if reddit_url.nil?
+
+    final_url = reddit_url.include?('/comments/') ? reddit_url : resolve_redirect(reddit_url)
     words = final_url.split('/')
     comments_index = words.find_index('comments')
     return if comments_index.nil? || words[comments_index + 1].nil?
 
     post_id = "t3_#{words[comments_index + 1]}"
     post = reddit_post_from_id(post_id)
+    return if post.nil?
     if !chat.nsfw? && post.over_18?
       answer = 'NSFW posts are banned.'
       @bilu.reply_with_text(answer, @message)
@@ -206,6 +212,8 @@ class RedditService
     end
     return if special_subreddit(post)
     send_media(post)
+  rescue StandardError => e
+    logger.error("Error resolving reddit link from message: [#{e.class.name}] #{e.message}")
   end
 
   def self.reddit_post_reply_markup(post)
@@ -225,25 +233,27 @@ class RedditService
 
   private
 
-  def resolve_redirect(url, username, password, limit = 10)
+  def extract_reddit_url(text)
+    match = text.to_s.match(%r{(https?://)?(www\.)?reddit\.com\S*}i)
+    match&.to_s
+  end
+
+  def resolve_redirect(url, limit = 10)
     raise ArgumentError, 'Too many HTTP redirects' if limit == 0
 
     uri = URI(url)
     http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = (uri.scheme == 'https') # Enable SSL/TLS if HTTPS
+    http.use_ssl = (uri.scheme == 'https')
 
-    request = Net::HTTP::Get.new(uri.request_uri)
-    request.basic_auth(username, password) # Add basic authentication
-
+    request = Net::HTTP::Head.new(uri.request_uri)
     response = http.request(request)
 
     case response
     when Net::HTTPSuccess then
       uri.to_s
     when Net::HTTPRedirection then
-      location = response['location']
-      puts "Redirected to #{location}"
-      resolve_redirect(location, username, password, limit - 1) # Pass credentials along
+      location = URI.join(uri, response['location']).to_s
+      resolve_redirect(location, limit - 1)
     else
       response.value
     end
@@ -259,7 +269,7 @@ class RedditService
       logger.info("subreddit #{subreddit_db.name} saved to database")
     end
     subreddit_db
-  rescue Redd::Errors::NotFound, JSON::ParserError => e
+  rescue Reddit::Errors::NotFound, JSON::ParserError => e
     answer = "subreddit #{subreddit_name} not found."
     logger.error(answer)
     logger.error("Exception Class: [#{e.class.name}]")
@@ -274,33 +284,52 @@ class RedditService
 
   def send_media(post)
     logger.debug("Post: score=[#{post.score}] title=[#{post.title}] url=[#{post.url}]")
-    # raise Telegram::Bot::Exceptions::Base, 'Self post' if post.self?
 
-    url_extension = post.url.split('.').last
     if post.self?
-      send_screenshot(post)
-    #elsif %w[gif gifv].include?(url_extension)
-    #  send_gifv(post)
-    #elsif url_extension == 'mp4'
-    #  send_mp4(post)
-    #elsif post.url.include? 'gfycat.com'
-    #  gif_name = post.url.split('/').last.split('-').first
-    #  new_url = JSON.parse(open("https://api.gfycat.com/v1/gfycats/#{gif_name}").string)['gfyItem']['mp4Url']
-    #  send_mp4(post, new_url)
-    #elsif !post.media.nil? && (post.media.keys.include? :reddit_video)
-    #  result = GalleryDL.download "reddit.com#{post.permalink}"
-    #  filepath = result.information.first[:local_path]
-    #  send_local_mp4(post, filepath)
-    #elsif (post.instance_variable_get :@attributes)[:is_gallery]
-    #  send_gallery(post)
+      send_self_post(post)
+    elsif post.gallery?
+      send_gallery(post)
+    elsif !post.reddit_video.nil?
+      send_reddit_video(post)
+    elsif post.reddit_hosted_media?
+      send_photo(post)
     else
       begin
-        gallery_dl_service = GalleryDLService.new(@bilu, @message, post)
-        gallery_dl_service.send_media
+        GalleryDLService.new(@bilu, @message, post).send_media
       rescue Telegram::Bot::Exceptions::Base => e
-        send_screenshot(post)
+        logger.error("gallery-dl failed sending #{post.url}: [#{e.class.name}] #{e.message}")
+        @bilu.reply_with_text("#{post.title}\n#{post.url}", @message)
       end
     end
+  end
+
+  def send_self_post(post)
+    logger.debug('START - Sending self post as text through telegram API.')
+    max_len = 3500
+    body = post.selftext.to_s.strip
+    body = "#{body[0, max_len]}..." if body.length > max_len
+    prefix = "#{post.over_18? ? "\u{1F51E} NSFW " : ''}#{post.spoiler? ? "\u{26A0} SPOILER " : ''}"
+    text = "#{prefix}#{post.title}#{"\n\n#{body}" unless body.empty?}"
+    @bilu.bot.api.send_message(
+      chat_id: get_telegram_chat_id,
+      text: text,
+      reply_to_message_id: get_telegram_message_id,
+      reply_markup: RedditService.reddit_post_reply_markup(post)
+    )
+    logger.debug('END - Sending self post as text through telegram API.')
+  end
+
+  def send_reddit_video(post)
+    logger.debug("START - Sending reddit-hosted video #{post.url} through telegram API.")
+    Dir.mktmpdir("reddit_video_#{Thread.current.object_id}") do |dir|
+      local_path = Reddit::VideoDownloader.download(post.reddit_video, dir)
+      if local_path.nil?
+        send_mp4(post, post.reddit_video['fallback_url'])
+      else
+        send_local_mp4(post, local_path)
+      end
+    end
+    logger.debug("END - Sending reddit-hosted video #{post.url} through telegram API.")
   end
 
   def send_local_mp4(post, filepath)
@@ -381,15 +410,15 @@ class RedditService
     )
     first_caption = nil
     messages_sent = []
-    post.media_metadata.each_slice(10) do |medias|
+    post.gallery_urls.each_slice(10) do |media_urls|
       response = @bilu.bot.api.send_media_group(
         chat_id: get_telegram_chat_id,
         reply_to_message_id: get_telegram_message_id,
-        media: medias.map do |_id, metadata|
-          logger.debug("Adding #{metadata[:p].last[:u]} to media group.")
+        media: media_urls.map do |media_url|
+          logger.debug("Adding #{media_url} to media group.")
           media = {
             type: 'photo',
-            media: metadata[:p].last[:u]
+            media: media_url
           }
           if first_caption.nil?
             first_caption = reddit_post_caption(post)
