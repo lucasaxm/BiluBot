@@ -300,17 +300,40 @@ class RedditService
     body = post.selftext.to_s.strip
     body = "#{body[0, max_len]}..." if body.length > max_len
 
-    meta = "r/#{post.subreddit.display_name}"
-    meta += " • u/#{post.author}" if post.author && post.author != '[deleted]'
-    tags = "#{post.over_18? ? "\u{1F51E} NSFW " : ''}#{post.spoiler? ? "\u{26A0} SPOILER " : ''}"
-    header = "#{meta}\n#{tags}#{post.title}"
+    subreddit_line = "r/#{post.subreddit.display_name}"
+    byline_prefix, date_placeholder = reddit_byline_parts(post)
+    byline_text = byline_prefix.nil? && date_placeholder.nil? ? nil : "#{byline_prefix}#{date_placeholder}"
+    # Keep subreddit+byline as a tight cluster (single line break), but leave
+    # a blank line before the title so it doesn't run straight into the meta.
+    meta_cluster = [subreddit_line, byline_text].compact.join("\n")
+
+    tag_parts = []
+    tag_parts << "\u{1F51E} NSFW" if post.over_18?
+    tag_parts << "\u{26A0} SPOILER" if post.spoiler?
+    tag_line = tag_parts.empty? ? nil : tag_parts.join(' ')
+    title_line = post.title
+    # No "marked"/pill entity exists in the legacy system (that's rich-message
+    # only), so a code entity - monospace text with a background box - is the
+    # closest badge-like substitute for the NSFW/SPOILER tag.
+    title_block = [tag_line, title_line].compact.join("\n")
+    header = "#{meta_cluster}\n\n#{title_block}"
     footer = "\u{25B2} #{post.score}"
     text = body.empty? ? "#{header}\n\n#{footer}" : "#{header}\n\n#{body}\n\n#{footer}"
 
-    entities = [
-      { type: 'bold', offset: 0, length: utf16_length(meta) },
-      { type: 'bold', offset: utf16_length(meta) + 1, length: utf16_length("#{tags}#{post.title}") }
-    ]
+    entities = [{ type: 'bold', offset: 0, length: utf16_length(subreddit_line) }]
+    if date_placeholder
+      date_offset = utf16_length(subreddit_line) + 1 + utf16_length(byline_prefix.to_s)
+      entities << { type: 'date_time', offset: date_offset, length: utf16_length(date_placeholder),
+                     unix_time: post.created_utc.to_i, date_time_format: 'r' }
+    end
+    title_block_offset = utf16_length(meta_cluster) + 2
+    if tag_line
+      entities << { type: 'code', offset: title_block_offset, length: utf16_length(tag_line) }
+      title_offset = title_block_offset + utf16_length(tag_line) + 1
+    else
+      title_offset = title_block_offset
+    end
+    entities << { type: 'bold', offset: title_offset, length: utf16_length(title_line) }
     # Rich message blocks have no equivalent to this - blockquote has no
     # collapse and details has no quote styling, so this is only achievable
     # via the legacy entity system, with a nested spoiler entity for NSFW/
@@ -331,6 +354,24 @@ class RedditService
       reply_markup: RedditService.reddit_post_reply_markup(post)
     )
     logger.debug('END - Sending self post as text through telegram API.')
+  end
+
+  # Splits the byline into ["by u/author • ", "<placeholder date text>"] so
+  # the date_time entity can be positioned over just the date substring - not
+  # the whole line, which the API rejects with ENTITY_DATE_TOO_LONG.
+  def reddit_byline_parts(post)
+    author = reddit_author_text(post)
+    return [author, nil] unless post.created_utc
+
+    date_placeholder = Time.at(post.created_utc.to_i).strftime('%b %-d')
+    [author.nil? ? nil : "#{author} \u{2022} ", date_placeholder]
+  end
+
+  # "by u/author", "by [deleted]", or nil if there's no author at all.
+  def reddit_author_text(post)
+    return nil unless post.author
+
+    "by #{post.author == '[deleted]' ? '[deleted]' : "u/#{post.author}"}"
   end
 
   # Message entity offsets are in UTF-16 code units; characters outside the
@@ -385,11 +426,12 @@ class RedditService
   # (a locally-uploaded, muxed video file), styled to match the post card.
   def reddit_caption_header(post)
     meta = "r/#{make_telegram_html_url(post.subreddit.display_name)}"
-    meta += " • u/#{make_telegram_html_url(post.author)}" if post.author && post.author != '[deleted]'
+    byline = byline_html(post)
     tags = []
     tags << "\u{1F51E} NSFW" if post.over_18?
     tags << "\u{26A0} SPOILER" if post.spoiler?
     lines = [meta]
+    lines << byline if byline
     lines << tags.join(' ') unless tags.empty?
     lines << "<b>#{make_telegram_html_url(post.title)}</b>"
     body = post.selftext.to_s.strip
@@ -397,6 +439,14 @@ class RedditService
     # footer's rich-message headroom, so keep any caption text on the short side.
     lines << make_telegram_html_url(body[0, 600]) unless body.empty?
     "#{lines.join("\n")}\n\n\u{25B2} #{post.score}"
+  end
+
+  # "u/author • <relative time>" using the native <tg-time> tag, or nil if
+  # there's neither an author nor a timestamp worth showing.
+  def byline_html(post)
+    author = post.author && post.author != '[deleted]' ? "u/#{make_telegram_html_url(post.author)}" : nil
+    time = post.created_utc ? "<tg-time unix=\"#{post.created_utc.to_i}\" format=\"r\">#{Time.at(post.created_utc.to_i)}</tg-time>" : nil
+    [author, time].compact.join(' • ') unless author.nil? && time.nil?
   end
 
   def reddit_selfpost_description(post)
@@ -450,7 +500,7 @@ class RedditService
         photo: Telegram::Bot::Types::InputMediaPhoto.new(media: url, has_spoiler: post.over_18? || post.spoiler?)
       )
     end
-    send_rich_post(post, [Telegram::Bot::Types::InputRichBlockCollage.new(blocks: photo_blocks)])
+    send_rich_post(post, [Telegram::Bot::Types::InputRichBlockSlideshow.new(blocks: photo_blocks)])
     logger.debug('END - Sending rich message gallery through telegram API.')
   end
 
@@ -481,11 +531,17 @@ class RedditService
     [Telegram::Bot::Types::InputRichBlockParagraph.new(text: body_text)]
   end
 
-  # "r/subreddit • u/author" line, NSFW/SPOILER tag badges, then the title.
+  # "r/subreddit" bold on its own line, "u/author • <relative time>" plain on
+  # the next, then NSFW/SPOILER tags, then the title - separate blocks so the
+  # byline reads as de-emphasized metadata instead of crowding the title.
   def reddit_header_blocks(post)
-    meta = [Telegram::Bot::Types::RichTextBold.new(text: "r/#{post.subreddit.display_name}")]
-    meta << " • u/#{post.author}" if post.author && post.author != '[deleted]'
-    blocks = [Telegram::Bot::Types::InputRichBlockParagraph.new(text: meta)]
+    blocks = [
+      Telegram::Bot::Types::InputRichBlockParagraph.new(
+        text: Telegram::Bot::Types::RichTextBold.new(text: "r/#{post.subreddit.display_name}")
+      )
+    ]
+    byline = reddit_byline(post)
+    blocks << Telegram::Bot::Types::InputRichBlockParagraph.new(text: byline) if byline
 
     tags = []
     tags << Telegram::Bot::Types::RichTextMarked.new(text: "\u{1F51E} NSFW") if post.over_18?
@@ -494,6 +550,12 @@ class RedditService
 
     blocks << Telegram::Bot::Types::InputRichBlockSectionHeading.new(text: post.title, size: 3)
     blocks
+  end
+
+  # "by u/author" (or "by [deleted]"), or nil if there's no author at all.
+  def reddit_byline(post)
+    author = reddit_author_text(post)
+    author.nil? ? nil : [author]
   end
 
   def reddit_footer_block(post)

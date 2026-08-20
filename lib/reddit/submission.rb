@@ -26,6 +26,10 @@ module Reddit
       data['author']
     end
 
+    def created_utc
+      data['created_utc']
+    end
+
     def score
       data['score']
     end
