@@ -119,7 +119,7 @@ GEM
     sqlite3 (2.9.6-x86_64-linux-musl)
     streamio-ffmpeg (3.0.2)
       multi_json (~> 1.8)
-    telegram-bot-ruby (1.0.0)
+    telegram-bot-ruby (2.8.1)
       dry-struct (~> 1.6)
       faraday (~> 2.0)
       faraday-multipart (~> 1.0)
@@ -160,7 +160,7 @@ DEPENDENCIES
   rmagick
   sqlite3 (~> 2.1)
   streamio-ffmpeg
-  telegram-bot-ruby (~> 1.0)
+  telegram-bot-ruby (~> 2.8)
   terrapin (~> 0.6.0)
 
 CHECKSUMS
@@ -226,7 +226,7 @@ CHECKSUMS
   sqlite3 (2.9.6-x86_64-linux-gnu) sha256=613188ce02f614126ddbc38c5e217ccffd6306d0dcd9adca9764547aa890a634
   sqlite3 (2.9.6-x86_64-linux-musl) sha256=d493b11818a3573387a1d56e1ee8fa00da23a683a7a1cc063e7a0feeed843abf
   streamio-ffmpeg (3.0.2) sha256=9f2434d4bf010b8b8d4da47c876ff35f4b775690123f3301e43b9c01d88fddda
-  telegram-bot-ruby (1.0.0) sha256=92bd23a483c21cf9fb42b760c37bca9218653bb4e871c8acf775812898c87ec1
+  telegram-bot-ruby (2.8.1) sha256=7a7b0988c03988770657c52c3f55be4fe67926e7c72ebfa5d47ff621426a42a8
   terrapin (0.6.0) sha256=c9fea9f13a40dc7c75212d1b9d4ee7e4542ffe7811bf700a38ba30900b70285c
   timeout (0.6.1) sha256=78f57368a7e7bbadec56971f78a3f5ecbcfb59b7fcbb0a3ed6ddc08a5094accb
   tzinfo (2.0.6) sha256=8daf828cc77bcf7d63b0e3bdb6caa47e2272dcfaf4fbfe46f8c3a9df087a829b

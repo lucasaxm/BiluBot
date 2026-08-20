@@ -44,7 +44,7 @@ module Routes
 
   @message_map = {
       lambda do |message|
-        regex_match message, %r{^/((r)|(reddit)) \w+$}i
+        regex_match message, %r{^/((r)|(reddit))(?:@((?!^$)([^\s]))*)? \w+$}i
       end => {
           controller: RedditController,
           action: :get_media_from_subreddit

@@ -337,7 +337,7 @@ class GalleryDLService
         reply_to_message_id: @message.message_id,
         media: media
       )
-      messages_sent.push(*response['result'])
+      messages_sent.push(*response)
     end
   end
 
@@ -350,13 +350,8 @@ class GalleryDLService
     payload.merge! options
     logger.debug "uploading media to telegram. payload:#{payload.to_json}"
     response = @bilu.bot.api.send "send_#{type}", payload
-    response_type = (['audio','document','photo','sticker','video','video_note','voice'] & response['result'].keys)
-    type = response_type.first unless response_type.empty?
-    if response['result'][type].is_a? Array
-      response['result'][type].last['file_id']
-    else
-      response['result'][type]['file_id']
-    end
+    media = %w[audio document photo sticker video video_note voice].filter_map { |t| response.public_send(t) }.first
+    media.is_a?(Array) ? media.last.file_id : media.file_id
   end
 
   private
