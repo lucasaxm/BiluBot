@@ -299,16 +299,44 @@ class RedditService
     max_len = 3500
     body = post.selftext.to_s.strip
     body = "#{body[0, max_len]}..." if body.length > max_len
-    body_text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
-    # A native collapsible "Read more" section instead of a wall of text.
-    media_blocks = body.empty? ? [] : [
-      Telegram::Bot::Types::InputRichBlockDetails.new(
-        summary: 'Read more',
-        blocks: [Telegram::Bot::Types::InputRichBlockParagraph.new(text: body_text)]
-      )
+
+    meta = "r/#{post.subreddit.display_name}"
+    meta += " • u/#{post.author}" if post.author && post.author != '[deleted]'
+    tags = "#{post.over_18? ? "\u{1F51E} NSFW " : ''}#{post.spoiler? ? "\u{26A0} SPOILER " : ''}"
+    header = "#{meta}\n#{tags}#{post.title}"
+    footer = "\u{25B2} #{post.score}"
+    text = body.empty? ? "#{header}\n\n#{footer}" : "#{header}\n\n#{body}\n\n#{footer}"
+
+    entities = [
+      { type: 'bold', offset: 0, length: utf16_length(meta) },
+      { type: 'bold', offset: utf16_length(meta) + 1, length: utf16_length("#{tags}#{post.title}") }
     ]
-    send_rich_post(post, media_blocks)
+    # Rich message blocks have no equivalent to this - blockquote has no
+    # collapse and details has no quote styling, so this is only achievable
+    # via the legacy entity system, with a nested spoiler entity for NSFW/
+    # spoiler posts (blockquote/expandable_blockquote can't nest with each
+    # other, but bold/spoiler/etc. can nest inside them just fine).
+    unless body.empty?
+      body_offset = utf16_length(header) + 2
+      body_length = utf16_length(body)
+      entities << { type: 'expandable_blockquote', offset: body_offset, length: body_length }
+      entities << { type: 'spoiler', offset: body_offset, length: body_length } if post.over_18? || post.spoiler?
+    end
+
+    @bilu.bot.api.send_message(
+      chat_id: get_telegram_chat_id,
+      text: text,
+      entities: entities,
+      reply_to_message_id: get_telegram_message_id,
+      reply_markup: RedditService.reddit_post_reply_markup(post)
+    )
     logger.debug('END - Sending self post as text through telegram API.')
+  end
+
+  # Message entity offsets are in UTF-16 code units; characters outside the
+  # BMP (most emoji) take 2 units, so a plain Ruby #length would be wrong.
+  def utf16_length(str)
+    str.each_char.sum { |c| c.ord > 0xFFFF ? 2 : 1 }
   end
 
   def send_reddit_video(post)
@@ -364,6 +392,10 @@ class RedditService
     lines = [meta]
     lines << tags.join(' ') unless tags.empty?
     lines << "<b>#{make_telegram_html_url(post.title)}</b>"
+    body = post.selftext.to_s.strip
+    # sendVideo captions are capped at 1024 chars total, well under the score
+    # footer's rich-message headroom, so keep any caption text on the short side.
+    lines << make_telegram_html_url(body[0, 600]) unless body.empty?
     "#{lines.join("\n")}\n\n\u{25B2} #{post.score}"
   end
 
@@ -427,13 +459,26 @@ class RedditService
   # sendMediaGroup/sendPhoto/sendVideo have no reply_markup for this, but
   # sendRichMessage does - one message, no follow-up call, no chat redirection.
   def send_rich_post(post, media_blocks)
-    blocks = reddit_header_blocks(post) + Array(media_blocks) + [reddit_footer_block(post)]
+    blocks = reddit_header_blocks(post) + Array(media_blocks) + reddit_selftext_blocks(post) + [reddit_footer_block(post)]
     @bilu.bot.api.send_rich_message(
       chat_id: get_telegram_chat_id,
       reply_parameters: Telegram::Bot::Types::ReplyParameters.new(message_id: get_telegram_message_id),
       rich_message: Telegram::Bot::Types::InputRichMessage.new(blocks: blocks),
       reply_markup: RedditService.reddit_post_reply_markup(post)
     )
+  end
+
+  # Posts aren't always purely one type - an image/video/gallery/gif post can
+  # still carry a text caption in selftext (post.self? is false in that case,
+  # so this doesn't overlap with send_self_post's own body handling).
+  def reddit_selftext_blocks(post)
+    body = post.selftext.to_s.strip
+    return [] if body.empty?
+
+    max_len = 3500
+    body = "#{body[0, max_len]}..." if body.length > max_len
+    body_text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
+    [Telegram::Bot::Types::InputRichBlockParagraph.new(text: body_text)]
   end
 
   # "r/subreddit • u/author" line, NSFW/SPOILER tag badges, then the title.
