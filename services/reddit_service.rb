@@ -291,6 +291,8 @@ class RedditService
       send_gallery(post)
     elsif !post.reddit_video.nil?
       send_reddit_video(post)
+    elsif post.gif?
+      send_gif(post)
     elsif post.reddit_hosted_media?
       send_photo(post)
     else
@@ -308,29 +310,16 @@ class RedditService
     max_len = 3500
     body = post.selftext.to_s.strip
     body = "#{body[0, max_len]}..." if body.length > max_len
-    prefix = "#{post.over_18? ? "\u{1F51E} NSFW " : ''}#{post.spoiler? ? "\u{26A0} SPOILER " : ''}"
-    header = "#{prefix}#{post.title}"
-    text = body.empty? ? header : "#{header}\n\n#{body}"
-    # Collapse long selftext behind a tap-to-expand quote instead of a wall of text.
-    entities = body.empty? ? [] : [{
-      type: 'expandable_blockquote',
-      offset: utf16_length(header) + 2,
-      length: utf16_length(body)
-    }]
-    @bilu.bot.api.send_message(
-      chat_id: get_telegram_chat_id,
-      text: text,
-      entities: entities,
-      reply_to_message_id: get_telegram_message_id,
-      reply_markup: RedditService.reddit_post_reply_markup(post)
-    )
+    body_text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
+    # A native collapsible "Read more" section instead of a wall of text.
+    media_blocks = body.empty? ? [] : [
+      Telegram::Bot::Types::InputRichBlockDetails.new(
+        summary: 'Read more',
+        blocks: [Telegram::Bot::Types::InputRichBlockParagraph.new(text: body_text)]
+      )
+    ]
+    send_rich_post(post, media_blocks)
     logger.debug('END - Sending self post as text through telegram API.')
-  end
-
-  # Message entity offsets are in UTF-16 code units; characters outside the
-  # BMP (most emoji) take 2 units, so a plain Ruby #length would be wrong.
-  def utf16_length(str)
-    str.each_char.sum { |c| c.ord > 0xFFFF ? 2 : 1 }
   end
 
   def send_reddit_video(post)
@@ -357,7 +346,8 @@ class RedditService
     @bilu.bot.api.send_video(
       chat_id: get_telegram_chat_id,
       video: upload,
-      caption: reddit_post_caption(post),
+      caption: reddit_caption_header(post),
+      parse_mode: 'HTML',
       reply_to_message_id: get_telegram_message_id,
       supports_streaming: true,
       has_spoiler: post.over_18? || post.spoiler?,
@@ -372,6 +362,20 @@ class RedditService
 
   def make_telegram_html_url(url)
     url.gsub('<', '&lt;').gsub('>', '&gt;').gsub('&', '&amp;')
+  end
+
+  # HTML caption fallback for the one path that can't use rich message blocks
+  # (a locally-uploaded, muxed video file), styled to match the post card.
+  def reddit_caption_header(post)
+    meta = "r/#{make_telegram_html_url(post.subreddit.display_name)}"
+    meta += " • u/#{make_telegram_html_url(post.author)}" if post.author && post.author != '[deleted]'
+    tags = []
+    tags << "\u{1F51E} NSFW" if post.over_18?
+    tags << "\u{26A0} SPOILER" if post.spoiler?
+    lines = [meta]
+    lines << tags.join(' ') unless tags.empty?
+    lines << "<b>#{make_telegram_html_url(post.title)}</b>"
+    "#{lines.join("\n")}\n\n\u{25B2} #{post.score}"
   end
 
   def reddit_selfpost_description(post)
@@ -389,14 +393,10 @@ class RedditService
       chat_id: get_telegram_chat_id,
       action: 'upload_photo'
     )
-    @bilu.bot.api.send_photo(
-      chat_id: get_telegram_chat_id,
-      photo: url.to_s,
-      caption: reddit_post_caption(post),
-      reply_to_message_id: get_telegram_message_id,
-      has_spoiler: post.over_18? || post.spoiler?,
-      reply_markup: RedditService.reddit_post_reply_markup(post)
+    photo_block = Telegram::Bot::Types::InputRichBlockPhoto.new(
+      photo: Telegram::Bot::Types::InputMediaPhoto.new(media: url.to_s, has_spoiler: post.over_18? || post.spoiler?)
     )
+    send_rich_post(post, [photo_block])
     logger.debug("END - Sending #{url} as photo through telegram API.")
   end
 
@@ -407,15 +407,14 @@ class RedditService
       chat_id: get_telegram_chat_id,
       action: 'upload_video'
     )
-    @bilu.bot.api.send_video(
-      chat_id: get_telegram_chat_id,
-      video: mp4url,
-      caption: reddit_post_caption(post),
-      supports_streaming: true,
-      reply_to_message_id: get_telegram_message_id,
-      has_spoiler: post.over_18? || post.spoiler?,
-      reply_markup: RedditService.reddit_post_reply_markup(post)
+    video_block = Telegram::Bot::Types::InputRichBlockVideo.new(
+      video: Telegram::Bot::Types::InputMediaVideo.new(
+        media: mp4url,
+        supports_streaming: true,
+        has_spoiler: post.over_18? || post.spoiler?
+      )
     )
+    send_rich_post(post, [video_block])
     logger.debug("END - Sending #{mp4url} as video through telegram API.")
   end
 
@@ -425,36 +424,64 @@ class RedditService
       chat_id: get_telegram_chat_id,
       action: 'typing'
     )
-    header = "#{post.over_18? ? "\u{1F51E} NSFW " : ''}#{post.spoiler? ? "\u{26A0} SPOILER " : ''}#{post.title}"
-    images = post.gallery_urls.first(50).map { |url| "<img src=\"#{make_telegram_html_url(url)}\"/>" }.join
-    html = "<p>#{make_telegram_html_url(header)}</p><tg-collage>#{images}</tg-collage>"
-    # sendMediaGroup has no reply_markup, but sendRichMessage does - one message
-    # with a collage of every image plus real buttons, no follow-up message and
-    # no chat redirection.
+    photo_blocks = post.gallery_urls.first(50).map do |url|
+      Telegram::Bot::Types::InputRichBlockPhoto.new(
+        photo: Telegram::Bot::Types::InputMediaPhoto.new(media: url, has_spoiler: post.over_18? || post.spoiler?)
+      )
+    end
+    send_rich_post(post, [Telegram::Bot::Types::InputRichBlockCollage.new(blocks: photo_blocks)])
+    logger.debug('END - Sending rich message gallery through telegram API.')
+  end
+
+  # Builds and sends a single Reddit-post-card message: meta/tag/title header,
+  # the type-specific media blocks, a score footer, and the existing buttons.
+  # sendMediaGroup/sendPhoto/sendVideo have no reply_markup for this, but
+  # sendRichMessage does - one message, no follow-up call, no chat redirection.
+  def send_rich_post(post, media_blocks)
+    blocks = reddit_header_blocks(post) + Array(media_blocks) + [reddit_footer_block(post)]
     @bilu.bot.api.send_rich_message(
       chat_id: get_telegram_chat_id,
-      reply_parameters: { message_id: get_telegram_message_id },
-      rich_message: { html: html },
+      reply_parameters: Telegram::Bot::Types::ReplyParameters.new(message_id: get_telegram_message_id),
+      rich_message: Telegram::Bot::Types::InputRichMessage.new(blocks: blocks),
       reply_markup: RedditService.reddit_post_reply_markup(post)
     )
-    logger.debug('END - Sending rich message gallery through telegram API.')
+  end
+
+  # "r/subreddit • u/author" line, NSFW/SPOILER tag badges, then the title.
+  def reddit_header_blocks(post)
+    meta = [Telegram::Bot::Types::RichTextBold.new(text: "r/#{post.subreddit.display_name}")]
+    meta << " • u/#{post.author}" if post.author && post.author != '[deleted]'
+    blocks = [Telegram::Bot::Types::InputRichBlockParagraph.new(text: meta)]
+
+    tags = []
+    tags << Telegram::Bot::Types::RichTextMarked.new(text: "\u{1F51E} NSFW") if post.over_18?
+    tags << Telegram::Bot::Types::RichTextMarked.new(text: "\u{26A0} SPOILER") if post.spoiler?
+    blocks << Telegram::Bot::Types::InputRichBlockParagraph.new(text: tags.flat_map { |t| [t, ' '] }[0..-2]) unless tags.empty?
+
+    blocks << Telegram::Bot::Types::InputRichBlockSectionHeading.new(text: post.title, size: 3)
+    blocks
+  end
+
+  def reddit_footer_block(post)
+    Telegram::Bot::Types::InputRichBlockFooter.new(text: "\u{25B2} #{post.score}")
   end
 
 
   def send_gif(post)
-    logger.debug("START - Sending #{post.url} as document through telegram API.")
+    animation_url = post.gif_video_url
+    logger.debug("START - Sending #{animation_url} as animation through telegram API.")
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'upload_video'
     )
-    @bilu.bot.api.send_document(
-      chat_id: get_telegram_chat_id,
-      document: post.url,
-      caption: reddit_post_caption(post),
-      reply_to_message_id: get_telegram_message_id,
-      reply_markup: RedditService.reddit_post_reply_markup(post)
+    animation_block = Telegram::Bot::Types::InputRichBlockAnimation.new(
+      animation: Telegram::Bot::Types::InputMediaAnimation.new(
+        media: animation_url,
+        has_spoiler: post.over_18? || post.spoiler?
+      )
     )
-    logger.debug("END - Sending #{post.url} as document through telegram API.")
+    send_rich_post(post, [animation_block])
+    logger.debug("END - Sending #{animation_url} as animation through telegram API.")
   end
 
   def get_telegram_chat_id

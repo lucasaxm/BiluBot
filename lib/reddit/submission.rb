@@ -22,12 +22,29 @@ module Reddit
       data['title']
     end
 
+    def author
+      data['author']
+    end
+
     def score
       data['score']
     end
 
     def url
       data['url_overridden_by_dest'] || data['url']
+    end
+
+    # An i.redd.it image that's actually an animated GIF, not a static photo.
+    def gif?
+      url.to_s.downcase.end_with?('.gif')
+    end
+
+    # Reddit's own mp4 transcode of the gif - a small muted video Telegram can
+    # actually fetch, unlike the raw GIF which is often 10-60x the file size
+    # and gets rejected by Telegram's URL fetcher.
+    def gif_video_url
+      mp4 = data.dig('preview', 'images', 0, 'variants', 'mp4', 'source', 'url')
+      mp4 ? mp4.gsub('&amp;', '&') : url
     end
 
     def permalink
