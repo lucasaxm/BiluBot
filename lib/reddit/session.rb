@@ -22,6 +22,10 @@ module Reddit
       children.map { |child| Submission.new(child['data']) }
     end
 
+    def resolve_share_link(path)
+      @client.resolve_share_link(path)
+    end
+
     def refresh
       @client.refresh
     end

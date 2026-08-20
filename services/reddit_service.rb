@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 require 'open-uri'
 require 'telegram/bot'
-require 'net/http'
 require 'uri'
 require 'tmpdir'
 require_relative "#{__dir__}/../lib/gallery_dl"
@@ -239,24 +238,14 @@ class RedditService
   end
 
   def resolve_redirect(url, limit = 10)
+    return url if url.include?('/comments/')
     raise ArgumentError, 'Too many HTTP redirects' if limit == 0
 
     uri = URI(url)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = (uri.scheme == 'https')
+    location = @reddit_session.resolve_share_link(uri.request_uri)
+    return url if location.nil?
 
-    request = Net::HTTP::Head.new(uri.request_uri)
-    response = http.request(request)
-
-    case response
-    when Net::HTTPSuccess then
-      uri.to_s
-    when Net::HTTPRedirection then
-      location = URI.join(uri, response['location']).to_s
-      resolve_redirect(location, limit - 1)
-    else
-      response.value
-    end
+    resolve_redirect(URI.join(uri, location).to_s, limit - 1)
   end
 
   def get_subreddit_from_db(subreddit_name)

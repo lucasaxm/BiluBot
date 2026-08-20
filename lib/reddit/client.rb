@@ -27,6 +27,20 @@ module Reddit
       handle_response(response)
     end
 
+    # Resolves a share link path (e.g. "/r/sub/s/CODE") to its redirect target
+    # via the authenticated API host, returning nil if there's no redirect.
+    # Some hosting providers' IPs get WAF-blocked outright on www.reddit.com's
+    # plain web pages regardless of headers, but oauth.reddit.com only cares
+    # about a valid token + User-Agent, so share-link resolution goes through
+    # here instead of an anonymous request to the web domain.
+    def resolve_share_link(path)
+      ensure_token
+      response = connection.head(path) do |req|
+        req.headers['Authorization'] = "Bearer #{@access_token}"
+      end
+      response.headers['location']
+    end
+
     def refresh
       fetch_token
     end
