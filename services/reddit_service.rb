@@ -300,71 +300,23 @@ class RedditService
     body = post.selftext.to_s.strip
     body = "#{body[0, max_len]}..." if body.length > max_len
 
-    subreddit_line = "r/#{post.subreddit.display_name}"
-    byline_prefix, date_placeholder = reddit_byline_parts(post)
-    byline_text = byline_prefix.nil? && date_placeholder.nil? ? nil : "#{byline_prefix}#{date_placeholder}"
-    # Keep subreddit+byline as a tight cluster (single line break), but leave
-    # a blank line before the title so it doesn't run straight into the meta.
-    meta_cluster = [subreddit_line, byline_text].compact.join("\n")
-
-    tag_parts = []
-    tag_parts << "\u{1F51E} NSFW" if post.over_18?
-    tag_parts << "\u{26A0} SPOILER" if post.spoiler?
-    tag_line = tag_parts.empty? ? nil : tag_parts.join(' ')
-    title_line = post.title
-    # No "marked"/pill entity exists in the legacy system (that's rich-message
-    # only), so a code entity - monospace text with a background box - is the
-    # closest badge-like substitute for the NSFW/SPOILER tag.
-    title_block = [tag_line, title_line].compact.join("\n")
-    header = "#{meta_cluster}\n\n#{title_block}"
-    footer = "\u{25B2} #{post.score}"
-    text = body.empty? ? "#{header}\n\n#{footer}" : "#{header}\n\n#{body}\n\n#{footer}"
-
-    entities = [{ type: 'bold', offset: 0, length: utf16_length(subreddit_line) }]
-    if date_placeholder
-      date_offset = utf16_length(subreddit_line) + 1 + utf16_length(byline_prefix.to_s)
-      entities << { type: 'date_time', offset: date_offset, length: utf16_length(date_placeholder),
-                     unix_time: post.created_utc.to_i, date_time_format: 'r' }
-    end
-    title_block_offset = utf16_length(meta_cluster) + 2
-    if tag_line
-      entities << { type: 'code', offset: title_block_offset, length: utf16_length(tag_line) }
-      title_offset = title_block_offset + utf16_length(tag_line) + 1
-    else
-      title_offset = title_block_offset
-    end
-    entities << { type: 'bold', offset: title_offset, length: utf16_length(title_line) }
-    # Rich message blocks have no equivalent to this - blockquote has no
-    # collapse and details has no quote styling, so this is only achievable
-    # via the legacy entity system, with a nested spoiler entity for NSFW/
-    # spoiler posts (blockquote/expandable_blockquote can't nest with each
-    # other, but bold/spoiler/etc. can nest inside them just fine).
-    unless body.empty?
-      body_offset = utf16_length(header) + 2
-      body_length = utf16_length(body)
-      entities << { type: 'expandable_blockquote', offset: body_offset, length: body_length }
-      entities << { type: 'spoiler', offset: body_offset, length: body_length } if post.over_18? || post.spoiler?
-    end
-
-    @bilu.bot.api.send_message(
-      chat_id: get_telegram_chat_id,
-      text: text,
-      entities: entities,
-      reply_to_message_id: get_telegram_message_id,
-      reply_markup: RedditService.reddit_post_reply_markup(post)
-    )
+    body_text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
+    # Details gives the collapse/"Read more" behavior, blockquote gives the
+    # quote-bar look - nest one inside the other to get both, since neither
+    # rich block does both on its own (the closest the rich message system
+    # gets to the old expandable_blockquote message entity).
+    media_blocks = body.empty? ? [] : [
+      Telegram::Bot::Types::InputRichBlockDetails.new(
+        summary: 'Read more',
+        blocks: [
+          Telegram::Bot::Types::InputRichBlockBlockQuotation.new(
+            blocks: [Telegram::Bot::Types::InputRichBlockParagraph.new(text: body_text)]
+          )
+        ]
+      )
+    ]
+    send_rich_post(post, media_blocks)
     logger.debug('END - Sending self post as text through telegram API.')
-  end
-
-  # Splits the byline into ["by u/author • ", "<placeholder date text>"] so
-  # the date_time entity can be positioned over just the date substring - not
-  # the whole line, which the API rejects with ENTITY_DATE_TOO_LONG.
-  def reddit_byline_parts(post)
-    author = reddit_author_text(post)
-    return [author, nil] unless post.created_utc
-
-    date_placeholder = Time.at(post.created_utc.to_i).strftime('%b %-d')
-    [author.nil? ? nil : "#{author} \u{2022} ", date_placeholder]
   end
 
   # "by u/author", "by [deleted]", or nil if there's no author at all.
@@ -372,12 +324,6 @@ class RedditService
     return nil unless post.author
 
     "by #{post.author == '[deleted]' ? '[deleted]' : "u/#{post.author}"}"
-  end
-
-  # Message entity offsets are in UTF-16 code units; characters outside the
-  # BMP (most emoji) take 2 units, so a plain Ruby #length would be wrong.
-  def utf16_length(str)
-    str.each_char.sum { |c| c.ord > 0xFFFF ? 2 : 1 }
   end
 
   def send_reddit_video(post)
@@ -395,58 +341,37 @@ class RedditService
 
   def send_local_mp4(post, filepath)
     logger.debug("START - Sending #{filepath} as video through telegram API.")
-    new_filepath = filepath
     @bilu.bot.api.send_chat_action(
       chat_id: get_telegram_chat_id,
       action: 'upload_video'
     )
-    upload = Faraday::UploadIO.new(new_filepath, 'video/mp4')
-    @bilu.bot.api.send_video(
-      chat_id: get_telegram_chat_id,
-      video: upload,
-      caption: reddit_caption_header(post),
-      parse_mode: 'HTML',
-      reply_to_message_id: get_telegram_message_id,
-      supports_streaming: true,
-      has_spoiler: post.over_18? || post.spoiler?,
-      reply_markup: RedditService.reddit_post_reply_markup(post)
-    )
+    upload = Faraday::UploadIO.new(filepath, 'video/mp4')
+    file_id = upload_video_file_id(upload)
     upload.close
     FileUtils.rm(filepath) if File.exist?(filepath)
     FileUtils.rm("#{filepath}.json") if File.exist?("#{filepath}.json")
-    FileUtils.rm(new_filepath) if File.exist?(new_filepath)
+
+    video_block = Telegram::Bot::Types::InputRichBlockVideo.new(
+      video: Telegram::Bot::Types::InputMediaVideo.new(
+        media: file_id,
+        supports_streaming: true,
+        has_spoiler: post.over_18? || post.spoiler?
+      )
+    )
+    send_rich_post(post, [video_block])
     logger.debug("END - Sending #{filepath} as video through telegram API.")
   end
 
-  def make_telegram_html_url(url)
-    url.gsub('<', '&lt;').gsub('>', '&gt;').gsub('&', '&amp;')
-  end
-
-  # HTML caption fallback for the one path that can't use rich message blocks
-  # (a locally-uploaded, muxed video file), styled to match the post card.
-  def reddit_caption_header(post)
-    meta = "r/#{make_telegram_html_url(post.subreddit.display_name)}"
-    byline = byline_html(post)
-    tags = []
-    tags << "\u{1F51E} NSFW" if post.over_18?
-    tags << "\u{26A0} SPOILER" if post.spoiler?
-    lines = [meta]
-    lines << byline if byline
-    lines << tags.join(' ') unless tags.empty?
-    lines << "<b>#{make_telegram_html_url(post.title)}</b>"
-    body = post.selftext.to_s.strip
-    # sendVideo captions are capped at 1024 chars total, well under the score
-    # footer's rich-message headroom, so keep any caption text on the short side.
-    lines << make_telegram_html_url(body[0, 600]) unless body.empty?
-    "#{lines.join("\n")}\n\n\u{25B2} #{post.score}"
-  end
-
-  # "u/author • <relative time>" using the native <tg-time> tag, or nil if
-  # there's neither an author nor a timestamp worth showing.
-  def byline_html(post)
-    author = post.author && post.author != '[deleted]' ? "u/#{make_telegram_html_url(post.author)}" : nil
-    time = post.created_utc ? "<tg-time unix=\"#{post.created_utc.to_i}\" format=\"r\">#{Time.at(post.created_utc.to_i)}</tg-time>" : nil
-    [author, time].compact.join(' • ') unless author.nil? && time.nil?
+  # Rich messages can't take a direct multipart upload, only a URL or an
+  # existing file_id - so the muxed local file is uploaded once to a private
+  # storage chat, then referenced by the file_id Telegram hands back.
+  def upload_video_file_id(upload)
+    response = @bilu.bot.api.send_video(
+      chat_id: ENV['BILU_UPLOADS_TELEGRAM_ID'],
+      video: upload,
+      supports_streaming: true
+    )
+    response.video.file_id
   end
 
   def reddit_selfpost_description(post)
@@ -519,9 +444,12 @@ class RedditService
   end
 
   # Posts aren't always purely one type - an image/video/gallery/gif post can
-  # still carry a text caption in selftext (post.self? is false in that case,
-  # so this doesn't overlap with send_self_post's own body handling).
+  # still carry a text caption in selftext. Self-posts already render their
+  # own body via send_self_post's collapsible quote, so skip here to avoid
+  # showing it twice.
   def reddit_selftext_blocks(post)
+    return [] if post.self?
+
     body = post.selftext.to_s.strip
     return [] if body.empty?
 
