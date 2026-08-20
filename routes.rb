@@ -127,12 +127,13 @@ module Routes
           controller: ImageController,
           action: :deepfry_reply
       },
-      lambda do |message|
-        has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
-      end => {
-          controller: GalleryDLController,
-          action: :fetch_metadata
-      },
+      # Generic link auto-download disabled - only reddit links are auto-handled now.
+      # lambda do |message|
+      #   has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
+      # end => {
+      #     controller: GalleryDLController,
+      #     action: :fetch_metadata
+      # },
       lambda do |message|
         regex_match message, %r{^callback download .*}i
       end => {

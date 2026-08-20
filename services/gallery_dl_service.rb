@@ -211,7 +211,10 @@ class GalleryDLService
     if @message.data == "noop"
       return
     end
-    callback_hash = @message.to_h
+    # Capture the actual prompt Message before @message may get reassigned
+    # below - @message.to_h would recursively hashify nested structs too,
+    # turning this into a plain Hash that then breaks bot.delete_message.
+    prompt_message = @message.message
     split_data = @message.data.split(' ')
     if ("#{split_data[2]}" == 'yes')
       @bilu.bot.api.edit_message_text(
@@ -228,9 +231,10 @@ class GalleryDLService
       @bilu.bot.api.answer_callback_query(callback_query_id: @message.id, text: "quem te comeu?")
       return
     end
-    misc_service = MiscService.new(@bilu, callback_hash[:message])
+    misc_service = MiscService.new(@bilu, prompt_message)
     misc_service.delete_message
   end
+
 
   def build_caption(information)
     full_caption = case information[:category].downcase
@@ -514,13 +518,15 @@ class GalleryDLService
   end
 
   def extract_urls(msg)
-    msg['entities'].select do |entity|
-      entity['type'] == 'url' || entity['type'] == 'text_link'
+    # dry-struct's #[] only accepts symbol keys; string keys always raise
+    # MissingAttributeError regardless of whether the attribute is set.
+    (msg.entities || []).select do |entity|
+      entity.type == 'url' || entity.type == 'text_link'
     end.map do |url_entity|
-      if url_entity['type'] == 'url'
-        msg['text'][url_entity['offset'], url_entity['length']]
+      if url_entity.type == 'url'
+        msg.text[url_entity.offset, url_entity.length]
       else # text_link
-        url_entity['url']
+        url_entity.url
       end
     end
   end
