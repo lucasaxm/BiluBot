@@ -296,26 +296,7 @@ class RedditService
 
   def send_self_post(post)
     logger.debug('START - Sending self post as text through telegram API.')
-    max_len = 3500
-    body = post.selftext.to_s.strip
-    body = "#{body[0, max_len]}..." if body.length > max_len
-
-    body_text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
-    # Details gives the collapse/"Read more" behavior, blockquote gives the
-    # quote-bar look - nest one inside the other to get both, since neither
-    # rich block does both on its own (the closest the rich message system
-    # gets to the old expandable_blockquote message entity).
-    media_blocks = body.empty? ? [] : [
-      Telegram::Bot::Types::InputRichBlockDetails.new(
-        summary: 'Read more',
-        blocks: [
-          Telegram::Bot::Types::InputRichBlockBlockQuotation.new(
-            blocks: [Telegram::Bot::Types::InputRichBlockParagraph.new(text: body_text)]
-          )
-        ]
-      )
-    ]
-    send_rich_post(post, media_blocks)
+    send_rich_post(post, [])
     logger.debug('END - Sending self post as text through telegram API.')
   end
 
@@ -434,7 +415,7 @@ class RedditService
   # sendMediaGroup/sendPhoto/sendVideo have no reply_markup for this, but
   # sendRichMessage does - one message, no follow-up call, no chat redirection.
   def send_rich_post(post, media_blocks)
-    blocks = reddit_header_blocks(post) + Array(media_blocks) + reddit_selftext_blocks(post) + [reddit_footer_block(post)]
+    blocks = reddit_header_blocks(post) + Array(media_blocks) + reddit_selftext_blocks(post)
     @bilu.bot.api.send_rich_message(
       chat_id: get_telegram_chat_id,
       reply_parameters: Telegram::Bot::Types::ReplyParameters.new(message_id: get_telegram_message_id),
@@ -443,13 +424,10 @@ class RedditService
     )
   end
 
-  # Posts aren't always purely one type - an image/video/gallery/gif post can
-  # still carry a text caption in selftext. Self-posts already render their
-  # own body via send_self_post's collapsible quote, so skip here to avoid
-  # showing it twice.
+  # Renders selftext as a plain paragraph, used both for self-posts' own body
+  # and for the caption other post types (photo/video/gallery/gif) sometimes
+  # carry alongside their media.
   def reddit_selftext_blocks(post)
-    return [] if post.self?
-
     body = post.selftext.to_s.strip
     return [] if body.empty?
 
@@ -463,20 +441,20 @@ class RedditService
   # the next, then NSFW/SPOILER tags, then the title - separate blocks so the
   # byline reads as de-emphasized metadata instead of crowding the title.
   def reddit_header_blocks(post)
+    byline = reddit_byline(post)
     blocks = [
       Telegram::Bot::Types::InputRichBlockParagraph.new(
-        text: Telegram::Bot::Types::RichTextBold.new(text: "r/#{post.subreddit.display_name}")
+        text: Telegram::Bot::Types::RichTextSubscript.new(text: "r/#{post.subreddit.display_name} #{byline ? byline.join(' ') : ''}")
       )
     ]
-    byline = reddit_byline(post)
-    blocks << Telegram::Bot::Types::InputRichBlockParagraph.new(text: byline) if byline
 
     tags = []
     tags << Telegram::Bot::Types::RichTextMarked.new(text: "\u{1F51E} NSFW") if post.over_18?
     tags << Telegram::Bot::Types::RichTextMarked.new(text: "\u{26A0} SPOILER") if post.spoiler?
     blocks << Telegram::Bot::Types::InputRichBlockParagraph.new(text: tags.flat_map { |t| [t, ' '] }[0..-2]) unless tags.empty?
 
-    blocks << Telegram::Bot::Types::InputRichBlockSectionHeading.new(text: post.title, size: 3)
+    blocks << Telegram::Bot::Types::InputRichBlockSectionHeading.new(text: post.title, size: 2)
+    blocks << Telegram::Bot::Types::InputRichBlockDivider.new
     blocks
   end
 
@@ -485,11 +463,6 @@ class RedditService
     author = reddit_author_text(post)
     author.nil? ? nil : [author]
   end
-
-  def reddit_footer_block(post)
-    Telegram::Bot::Types::InputRichBlockFooter.new(text: "\u{25B2} #{post.score}")
-  end
-
 
   def send_gif(post)
     animation_url = post.gif_video_url
