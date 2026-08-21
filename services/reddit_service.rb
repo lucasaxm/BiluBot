@@ -424,17 +424,50 @@ class RedditService
     )
   end
 
-  # Renders selftext as a plain paragraph, used both for self-posts' own body
-  # and for the caption other post types (photo/video/gallery/gif) sometimes
-  # carry alongside their media.
+  # Renders selftext as a short preview paragraph, used both for self-posts'
+  # own body and for the caption other post types (photo/video/gallery/gif)
+  # sometimes carry alongside their media. Longer bodies are truncated to a
+  # few lines with the rest tucked into a "Read more" details block, so a
+  # wall of text doesn't dominate the chat.
   def reddit_selftext_blocks(post)
     body = post.selftext.to_s.strip
     return [] if body.empty?
 
     max_len = 3500
     body = "#{body[0, max_len]}..." if body.length > max_len
-    body_text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
-    [Telegram::Bot::Types::InputRichBlockParagraph.new(text: body_text)]
+    preview, rest = split_selftext_preview(body)
+    wrap = lambda do |text|
+      post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: text) : text
+    end
+
+    blocks = [Telegram::Bot::Types::InputRichBlockParagraph.new(text: wrap.call(preview))]
+    return blocks if rest.empty?
+
+    blocks << Telegram::Bot::Types::InputRichBlockDetails.new(
+      summary: 'Read more',
+      blocks: [Telegram::Bot::Types::InputRichBlockParagraph.new(text: wrap.call(rest))]
+    )
+    blocks
+  end
+
+  # Splits text into a ~4-line preview and the remainder, keeping original
+  # whitespace/line breaks intact in both halves.
+  def split_selftext_preview(body, word_limit: 50)
+    tokens = body.split(/(\s+)/)
+    split_index = tokens.length
+    word_count = 0
+    tokens.each_with_index do |token, i|
+      next if token.strip.empty?
+
+      word_count += 1
+      next unless word_count >= word_limit
+
+      split_index = i + 1
+      break
+    end
+    return [body, ''] if split_index >= tokens.length
+
+    [tokens[0...split_index].join, tokens[split_index..-1].join.strip]
   end
 
   # "r/subreddit" bold on its own line, "u/author • <relative time>" plain on
