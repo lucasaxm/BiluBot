@@ -15,8 +15,11 @@ module GalleryDLConfig
     extractor: {
       filename: '{filename|id}.{extension|ext}',
       reddit: {
-        "client-id": ENV['BILU_REDDIT_CLIENT_ID_DL'],
-        "client-secret": ENV['BILU_REDDIT_CLIENT_SECRET_DL'],
+        # Our reddit app is a "script" app (has a secret), but gallery-dl's OAuth
+        # support only knows the secretless "installed app" and user-login flows.
+        # Use plain public/unauthenticated access instead, which is enough to
+        # fetch already-known post URLs/permalinks.
+        api: 'rest',
         "user-agent": "Python:#{ENV['BILU_REDDIT_APP_NAME_DL']}:v1.0 (by /u/#{ENV['BILU_REDDIT_USERNAME']})"
       },
       twitter: {

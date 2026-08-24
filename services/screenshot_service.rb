@@ -159,15 +159,17 @@ class ScreenshotService
   private
 
   def extract_urls(msg)
-    msg['entities'].select do |entity|
-      entity['type'] == 'url' || entity['type'] == 'text_link'
+    # dry-struct's #[] only accepts symbol keys; string keys always raise
+    # MissingAttributeError regardless of whether the attribute is set.
+    (msg.entities || []).select do |entity|
+      entity.type == 'url' || entity.type == 'text_link'
     end.map do |url_entity|
-      if url_entity['type'] == 'url'
-        msg['text'].chars.map do |x|
+      if url_entity.type == 'url'
+        msg.text.chars.map do |x|
           x.bytes.each_slice(2).to_a
-        end.flatten(1)[url_entity['offset'], url_entity['offset'] + url_entity['length']].flatten.pack('C*')
+        end.flatten(1)[url_entity.offset, url_entity.offset + url_entity.length].flatten.pack('C*')
       else # text_link
-        url_entity['url']
+        url_entity.url
       end
     end
   end

@@ -23,4 +23,14 @@ jobs:
 
       - name: Deploy to SSH server
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_SERVER }} 'cd bots/BiluBot && git pull origin master && pkill ruby'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_SERVER }} '
+            set -e
+            export PATH="$HOME/.asdf/shims:$HOME/.asdf/bin:$PATH"
+            [ -f "$HOME/.asdf/asdf.sh" ] && source "$HOME/.asdf/asdf.sh"
+            cd bots/BiluBot
+            git pull origin master
+            asdf install
+            bundle install
+            pip install -r requirements.txt
+            pkill ruby || true
+          '

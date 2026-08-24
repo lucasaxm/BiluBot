@@ -1,6 +1,9 @@
 require 'telegram/bot'
 require 'timeout'
 require 'nokogiri'
+require 'net/http'
+require 'active_support/core_ext/object/try'
+require 'active_support/core_ext/object/blank'
 require_relative "#{__dir__}/../config/gallery_dl_config"
 require_relative "#{__dir__}/../lib/gallery_dl"
 require_relative "#{__dir__}/../logger/logging"
@@ -208,7 +211,10 @@ class GalleryDLService
     if @message.data == "noop"
       return
     end
-    callback_hash = @message.to_h
+    # Capture the actual prompt Message before @message may get reassigned
+    # below - @message.to_h would recursively hashify nested structs too,
+    # turning this into a plain Hash that then breaks bot.delete_message.
+    prompt_message = @message.message
     split_data = @message.data.split(' ')
     if ("#{split_data[2]}" == 'yes')
       @bilu.bot.api.edit_message_text(
@@ -225,9 +231,10 @@ class GalleryDLService
       @bilu.bot.api.answer_callback_query(callback_query_id: @message.id, text: "quem te comeu?")
       return
     end
-    misc_service = MiscService.new(@bilu, callback_hash[:message])
+    misc_service = MiscService.new(@bilu, prompt_message)
     misc_service.delete_message
   end
+
 
   def build_caption(information)
     full_caption = case information[:category].downcase
@@ -334,7 +341,7 @@ class GalleryDLService
         reply_to_message_id: @message.message_id,
         media: media
       )
-      messages_sent.push(*response['result'])
+      messages_sent.push(*response)
     end
   end
 
@@ -347,13 +354,8 @@ class GalleryDLService
     payload.merge! options
     logger.debug "uploading media to telegram. payload:#{payload.to_json}"
     response = @bilu.bot.api.send "send_#{type}", payload
-    response_type = (['audio','document','photo','sticker','video','video_note','voice'] & response['result'].keys)
-    type = response_type.first unless response_type.empty?
-    if response['result'][type].is_a? Array
-      response['result'][type].last['file_id']
-    else
-      response['result'][type]['file_id']
-    end
+    media = %w[audio document photo sticker video video_note voice].filter_map { |t| response.public_send(t) }.first
+    media.is_a?(Array) ? media.last.file_id : media.file_id
   end
 
   private
@@ -413,7 +415,7 @@ class GalleryDLService
     upload = Faraday::UploadIO.new(filepath, 'video/mp4')
     options = {}
     thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
-    if File.exists? thumb
+    if File.exist? thumb
       options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
     end
     options['duration'] = information[:duration].to_i unless information[:duration].nil?
@@ -445,7 +447,7 @@ class GalleryDLService
     end
     options = {}
     thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
-    if File.exists? thumb
+    if File.exist? thumb
       options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
     end
     options['duration'] = information[:duration].to_i unless information[:duration].nil?
@@ -468,7 +470,7 @@ class GalleryDLService
     upload = Faraday::UploadIO.new(filepath, 'audio/m4a')
     options = {}
     thumb = filepath.split('.')[0..-2].join('.')+'.jpg'
-    if File.exists? thumb
+    if File.exist? thumb
       options['thumb'] = Faraday::UploadIO.new(thumb, 'image/jpeg')
     end
     if (information[:category].downcase == 'ytdl')
@@ -516,13 +518,15 @@ class GalleryDLService
   end
 
   def extract_urls(msg)
-    msg['entities'].select do |entity|
-      entity['type'] == 'url' || entity['type'] == 'text_link'
+    # dry-struct's #[] only accepts symbol keys; string keys always raise
+    # MissingAttributeError regardless of whether the attribute is set.
+    (msg.entities || []).select do |entity|
+      entity.type == 'url' || entity.type == 'text_link'
     end.map do |url_entity|
-      if url_entity['type'] == 'url'
-        msg['text'][url_entity['offset'], url_entity['length']]
+      if url_entity.type == 'url'
+        msg.text[url_entity.offset, url_entity.length]
       else # text_link
-        url_entity['url']
+        url_entity.url
       end
     end
   end

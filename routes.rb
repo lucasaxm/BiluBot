@@ -44,7 +44,7 @@ module Routes
 
   @message_map = {
       lambda do |message|
-        regex_match message, %r{^/((r)|(reddit)) \w+$}i
+        regex_match message, %r{^/((r)|(reddit))(?:@((?!^$)([^\s]))*)? \w+$}i
       end => {
           controller: RedditController,
           action: :get_media_from_subreddit
@@ -73,12 +73,12 @@ module Routes
         controller: RedditController,
         action: :ban_subreddit
       },
-      # lambda do |message|
-      #   is_reddit_link?(message)
-      # end => {
-      #     controller: RedditController,
-      #     action: :get_media_from_url
-      # },
+      lambda do |message|
+        is_reddit_link?(message)
+      end => {
+          controller: RedditController,
+          action: :get_media_from_url
+      },
       lambda do |message|
         regex_match message, %r{^\/spam(?:@((?!^$)([^\s]))*)?$}i
       end => {
@@ -127,13 +127,13 @@ module Routes
           controller: ImageController,
           action: :deepfry_reply
       },
-      lambda do |message|
-        # has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
-        has_link?(message) && !is_via_bilutempobot?(message)
-      end => {
-          controller: GalleryDLController,
-          action: :fetch_metadata
-      },
+      # Generic link auto-download disabled - only reddit links are auto-handled now.
+      # lambda do |message|
+      #   has_link?(message) && !is_reddit_link?(message) && !is_via_bilutempobot?(message)
+      # end => {
+      #     controller: GalleryDLController,
+      #     action: :fetch_metadata
+      # },
       lambda do |message|
         regex_match message, %r{^callback download .*}i
       end => {

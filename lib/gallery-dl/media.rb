@@ -120,12 +120,12 @@ module GalleryDL
     end
 
     def get_metadata(file, downloaded)
-      if (downloaded && !(File.exists?(file)))
+      if (downloaded && !(File.exist?(file)))
         logger.error("Couldn't extract metadata #{file} doesn't exists")
         return
       end
       metadata_file = "#{file}.json"
-      unless File.exists? metadata_file
+      unless File.exist? metadata_file
         logger.error("Couldn't extract metadata #{metadata_file} doesn't exists")
         return
       end

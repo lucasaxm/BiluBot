@@ -1,12 +1,14 @@
 require "bundler" 
 Bundler.setup(:default)
+# A present-but-blank DATABASE_URL (e.g. from tokens.env) crashes ActiveRecord at
+# require-time, before our own sqlite fallback ever runs. Strip it first.
+ENV.delete('DATABASE_URL') if ENV['DATABASE_URL'].to_s.strip.empty?
 require_relative "#{__dir__}/logger/logging"
 require_relative "#{__dir__}/router"
 require_relative "#{__dir__}/db/bilu_schema"
 require 'telegram/bot'
-require 'redd'
 require 'active_record'
-require 'pg'
+require 'sqlite3'
 require "down"
 require "fileutils"
 require 'streamio-ffmpeg'
@@ -17,7 +19,7 @@ module Bilu
 
   class Bot
     include Logging
-    attr_reader :bot
+    attr_reader :bot, :username
 
     def initialize
       BiluSchema.create_db
@@ -30,8 +32,9 @@ module Bilu
         end
       end.parse!
       @bot = Telegram::Bot::Client.new(@token)
-      ActiveRecord::Base.establish_connection ENV['DATABASE_URL']
-      logger.info("server started as #{@bot.api.get_me['result']['username']}")
+      ActiveRecord::Base.establish_connection(ENV.fetch('DATABASE_URL', BiluSchema.default_database_url))
+      @username = @bot.api.get_me.username
+      logger.info("server started as #{@username}")
     end
 
     def listen(&block)
@@ -94,7 +97,7 @@ module Bilu
               chat_id: @log_id,
               text: formatted_message,
               parse_mode: 'MarkdownV2',
-              reply_to_message_id: error_msg['result']['message_id']
+              reply_to_message_id: error_msg.message_id
           )
         end
       rescue StandardError => e
@@ -128,12 +131,7 @@ module Bilu
 
     # returns file path
     def get_file(file_id)
-      file_hash = @bot.api.get_file(file_id: file_id)
-      if file_hash.nil? || !file_hash['ok']
-        log.error('Error getting file from telegram')
-        return
-      end
-      file_hash['result']['file_path']
+      @bot.api.get_file(file_id: file_id).file_path
     end
 
     def download_file(telegram_file_path, save_path=nil)

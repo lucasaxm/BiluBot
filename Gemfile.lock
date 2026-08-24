@@ -1,135 +1,240 @@
-GIT
-  remote: https://github.com/adsteel/redd
-  revision: 93f0eb2284a52162e2ddc5e1e91b0c8f7e329629
-  specs:
-    redd (0.9.0.pre.3)
-      http (~> 2.2)
-      lazy_lazer (~> 0.8.1)
-
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (7.0.8.1)
-      activesupport (= 7.0.8.1)
-    activerecord (7.0.8.1)
-      activemodel (= 7.0.8.1)
-      activesupport (= 7.0.8.1)
-    activesupport (7.0.8.1)
-      concurrent-ruby (~> 1.0, >= 1.0.2)
+    activemodel (7.2.3.2)
+      activesupport (= 7.2.3.2)
+    activerecord (7.2.3.2)
+      activemodel (= 7.2.3.2)
+      activesupport (= 7.2.3.2)
+      timeout (>= 0.4.0)
+    activesupport (7.2.3.2)
+      base64
+      benchmark (>= 0.3)
+      bigdecimal
+      concurrent-ruby (~> 1.0, >= 1.3.1)
+      connection_pool (>= 2.2.5)
+      drb
       i18n (>= 1.6, < 2)
-      minitest (>= 5.1)
-      tzinfo (~> 2.0)
-    addressable (2.8.6)
-      public_suffix (>= 2.0.2, < 6.0)
-    aw (0.2.0)
+      logger (>= 1.4.2)
+      minitest (>= 5.1, < 6)
+      securerandom (>= 0.3)
+      tzinfo (~> 2.0, >= 2.0.5)
+    addressable (2.9.0)
+      public_suffix (>= 2.0.2, < 8.0)
     awesome_print (1.9.2)
-    axiom-types (0.1.1)
-      descendants_tracker (~> 0.0.4)
-      ice_nine (~> 0.11.0)
-      thread_safe (~> 0.3, >= 0.3.1)
-    byebug (11.1.3)
+    base64 (0.3.0)
+    benchmark (0.5.0)
+    bigdecimal (4.1.2)
+    byebug (13.0.0)
+      reline (>= 0.6.0)
     climate_control (0.2.0)
-    coercible (1.0.0)
-      descendants_tracker (~> 0.0.1)
-    concurrent-ruby (1.2.3)
-    descendants_tracker (0.0.4)
-      thread_safe (~> 0.3, >= 0.3.1)
-    domain_name (0.6.20240107)
+    concurrent-ruby (1.3.8)
+    connection_pool (3.0.2)
     dotenv (2.8.1)
-    down (5.4.1)
+    down (5.6.0)
       addressable (~> 2.8)
-    dry-inflector (1.0.0)
-    faraday (2.9.0)
-      faraday-net_http (>= 2.0, < 3.2)
-    faraday-multipart (1.0.4)
-      multipart-post (~> 2)
-    faraday-net_http (3.1.0)
-      net-http
-    fastimage (2.3.0)
-    fileutils (1.7.2)
-    forecast_io (2.0.2)
-      faraday
-      hashie
-      multi_json
-    hashie (5.0.0)
-    http (2.2.2)
-      addressable (~> 2.3)
-      http-cookie (~> 1.0)
-      http-form_data (~> 1.0.1)
-      http_parser.rb (~> 0.6.0)
-    http-cookie (1.0.5)
-      domain_name (~> 0.5)
-    http-form_data (1.0.3)
-    http_parser.rb (0.6.0)
-    i18n (1.14.1)
+      base64 (~> 0.3)
+    drb (2.2.3)
+    dry-core (1.2.0)
+      concurrent-ruby (~> 1.0)
+      logger
+      zeitwerk (~> 2.6)
+    dry-inflector (1.3.1)
+    dry-logic (1.6.0)
+      bigdecimal
+      concurrent-ruby (~> 1.0)
+      dry-core (~> 1.1)
+      zeitwerk (~> 2.6)
+    dry-struct (1.8.1)
+      dry-core (~> 1.1)
+      dry-types (~> 1.8, >= 1.8.2)
+      ice_nine (~> 0.11)
+      zeitwerk (~> 2.6)
+    dry-types (1.9.1)
+      bigdecimal (>= 3.0)
+      concurrent-ruby (~> 1.0)
+      dry-core (~> 1.0)
+      dry-inflector (~> 1.0)
+      dry-logic (~> 1.4)
+      zeitwerk (~> 2.6)
+    faraday (2.14.3)
+      faraday-net_http (>= 2.0, < 3.5)
+      json
+      logger
+    faraday-multipart (1.2.0)
+      multipart-post (~> 2.0)
+    faraday-net_http (3.4.4)
+      net-http (~> 0.5)
+    fastimage (2.4.1)
+    fileutils (1.8.0)
+    i18n (1.15.2)
       concurrent-ruby (~> 1.0)
     ice_nine (0.11.2)
-    lazy_lazer (0.8.1)
-    mime-types (3.5.2)
-      mime-types-data (~> 3.2015)
-    mime-types-data (3.2024.0206)
-    minitest (5.22.2)
-    multi_json (1.15.0)
-    multipart-post (2.4.0)
-    net-http (0.4.1)
-      uri
-    nokogiri (1.16.2-x86_64-linux)
+    io-console (0.9.2)
+    json (2.21.2)
+    logger (1.7.0)
+    mime-types (3.7.0)
+      logger
+      mime-types-data (~> 3.2025, >= 3.2025.0507)
+    mime-types-data (3.2026.0701)
+    minitest (5.27.0)
+    multi_json (1.21.1)
+    multipart-post (2.4.1)
+    net-http (0.9.1)
+      uri (>= 0.11.1)
+    nokogiri (1.19.4-aarch64-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.19.4-aarch64-linux-musl)
+      racc (~> 1.4)
+    nokogiri (1.19.4-arm-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.19.4-arm-linux-musl)
+      racc (~> 1.4)
+    nokogiri (1.19.4-arm64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.19.4-x86_64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.19.4-x86_64-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.19.4-x86_64-linux-musl)
       racc (~> 1.4)
     observer (0.1.2)
-    pg (1.5.5)
-    pkg-config (1.5.6)
-    public_suffix (5.0.4)
-    racc (1.7.3)
-    rmagick (5.4.4)
+    ostruct (0.6.3)
+    pkg-config (1.6.5)
+    public_suffix (7.0.5)
+    racc (1.8.1)
+    reline (0.7.0)
+      io-console (~> 0.5)
+    rmagick (7.1.1)
       observer (~> 0.1)
       pkg-config (~> 1.4)
+    securerandom (0.4.1)
+    sqlite3 (2.9.6-aarch64-linux-gnu)
+    sqlite3 (2.9.6-aarch64-linux-musl)
+    sqlite3 (2.9.6-arm-linux-gnu)
+    sqlite3 (2.9.6-arm-linux-musl)
+    sqlite3 (2.9.6-arm64-darwin)
+    sqlite3 (2.9.6-x86_64-darwin)
+    sqlite3 (2.9.6-x86_64-linux-gnu)
+    sqlite3 (2.9.6-x86_64-linux-musl)
     streamio-ffmpeg (3.0.2)
       multi_json (~> 1.8)
-    telegram-bot-ruby (0.23.0)
-      dry-inflector
+    telegram-bot-ruby (2.8.1)
+      dry-struct (~> 1.6)
       faraday (~> 2.0)
       faraday-multipart (~> 1.0)
-      virtus (~> 2.0)
+      zeitwerk (~> 2.6)
     terrapin (0.6.0)
       climate_control (>= 0.0.3, < 1.0)
-    thread_safe (0.3.6)
-    timezone (1.3.25)
+    timeout (0.6.1)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
-    uri (0.13.0)
-    virtus (2.0.0)
-      axiom-types (~> 0.1)
-      coercible (~> 1.0)
-      descendants_tracker (~> 0.0, >= 0.0.3)
+    uri (1.1.1)
+    zeitwerk (2.8.3)
 
 PLATFORMS
-  x86_64-linux
+  aarch64-linux-gnu
+  aarch64-linux-musl
+  arm-linux-gnu
+  arm-linux-musl
+  arm64-darwin
+  x86_64-darwin
+  x86_64-linux-gnu
+  x86_64-linux-musl
 
 DEPENDENCIES
-  activerecord (~> 7.0.3)
-  activesupport (~> 7.0.4)
-  aw
+  activerecord (~> 7.2)
+  activesupport (~> 7.2)
   awesome_print
   byebug
   concurrent-ruby
   dotenv (~> 2.5)
   down
   faraday (~> 2.0)
+  faraday-multipart
   fastimage
   fileutils
-  forecast_io
   mime-types (~> 3.4)
   nokogiri (~> 1.16)
-  pg (>= 0.19.0.beta)
-  redd!
+  ostruct
   rmagick
+  sqlite3 (~> 2.1)
   streamio-ffmpeg
-  telegram-bot-ruby (~> 0.20)
+  telegram-bot-ruby (~> 2.8)
   terrapin (~> 0.6.0)
-  timezone (~> 1.0)
+
+CHECKSUMS
+  activemodel (7.2.3.2) sha256=3777c67cd8dd1560f30387523013dacb370a0a1cf532037410887819e4416927
+  activerecord (7.2.3.2) sha256=e62d24ba7e5f820d24ed122eb9225491b0aaa8398778783b400067c3467285c7
+  activesupport (7.2.3.2) sha256=ddc90d11dd88086d78ace03407fe3c2a3f5c8853c3c3046313db5ed823ef3312
+  addressable (2.9.0) sha256=7fdf6ac3660f7f4e867a0838be3f6cf722ace541dd97767fa42bc6cfa980c7af
+  awesome_print (1.9.2) sha256=e99b32b704acff16d768b3468680793ced40bfdc4537eb07e06a4be11133786e
+  base64 (0.3.0) sha256=27337aeabad6ffae05c265c450490628ef3ebd4b67be58257393227588f5a97b
+  benchmark (0.5.0) sha256=465df122341aedcb81a2a24b4d3bd19b6c67c1530713fd533f3ff034e419236c
+  bigdecimal (4.1.2) sha256=53d217666027eab4280346fba98e7d5b66baaae1b9c3c1c0ffe89d48188a3fbd
+  bundler (4.0.18) sha256=02d9a17429de1847b4e0c9f27a9ee4b20c0a74c0a641b4e77195d6019e3618ac
+  byebug (13.0.0) sha256=d2263efe751941ca520fa29744b71972d39cbc41839496706f5d9b22e92ae05d
+  climate_control (0.2.0) sha256=51f6a7f6a3e7b94f400592c298b32b91467400ec4580065ccc26efa522d82160
+  concurrent-ruby (1.3.8) sha256=b2f1be836e968ccc78ccfce277ea79c72a88633f22306782c16ff23fb415d1e1
+  connection_pool (3.0.2) sha256=33fff5ba71a12d2aa26cb72b1db8bba2a1a01823559fb01d29eb74c286e62e0a
+  dotenv (2.8.1) sha256=c5944793349ae03c432e1780a2ca929d60b88c7d14d52d630db0508c3a8a17d8
+  down (5.6.0) sha256=48ec6ddb078cbf3b425d02596bb388303316f976143c6e94a7b3169d6712b593
+  drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
+  dry-core (1.2.0) sha256=0cc5a7da88df397f153947eeeae42e876e999c1e30900f3c536fb173854e96a1
+  dry-inflector (1.3.1) sha256=7fb0c2bb04f67638f25c52e7ba39ab435d922a3a5c3cd196120f63accb682dcc
+  dry-logic (1.6.0) sha256=da6fedbc0f90fc41f9b0cc7e6f05f5d529d1efaef6c8dcc8e0733f685745cea2
+  dry-struct (1.8.1) sha256=033868594c45241540172bf1ebbc8bb76b72b4f0717072325deba38ac13e80f1
+  dry-types (1.9.1) sha256=baebeecdb9f8395d6c9d227b62011279440943e3ef2468fe8ccc1ba11467f178
+  faraday (2.14.3) sha256=1882247e6766615c8220b4392bf1d27f6ebb63d8e28267587cef1fb0bf37f278
+  faraday-multipart (1.2.0) sha256=7d89a949693714176f612323ca13746a2ded204031a6ba528adee788694ef757
+  faraday-net_http (3.4.4) sha256=0e78af151747ed1b00f33e25973b4bc220d7f16c00c39676817c8b12331eb588
+  fastimage (2.4.1) sha256=c64bebd46b6fd8943ab70c1e6e85ff728f970f2e48f92ecd249b6bc3a540ad20
+  fileutils (1.8.0) sha256=8c6b1df54e2540bdb2f39258f08af78853aa70bad52b4d394bbc6424593c6e02
+  i18n (1.15.2) sha256=00f9eb62412fe593b2a65a97daa75300d37abb8f7202ec748e94b6d46a9dd1b5
+  ice_nine (0.11.2) sha256=5d506a7d2723d5592dc121b9928e4931742730131f22a1a37649df1c1e2e63db
+  io-console (0.9.2) sha256=efa74f891dd03c0939a931dfc6e74c2813d904763d456ea9762b0525e748db08
+  json (2.21.2) sha256=1f1d3b7cf2b3ba1a69beca0bb6db13d5438b80bff3cd54cdaaa620b9b07c1c6a
+  logger (1.7.0) sha256=196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203
+  mime-types (3.7.0) sha256=dcebf61c246f08e15a4de34e386ebe8233791e868564a470c3fe77c00eed5e56
+  mime-types-data (3.2026.0701) sha256=cd8811e1fb89d836499ba0582368a10ee74cef929ba956d1d5ddca045e6a730f
+  minitest (5.27.0) sha256=2d3b17f8a36fe7801c1adcffdbc38233b938eb0b4966e97a6739055a45fa77d5
+  multi_json (1.21.1) sha256=e6126a31808e3b4d19f483c775ceac34df190dffa62adfb63a165ee14ba68080
+  multipart-post (2.4.1) sha256=9872d03a8e552020ca096adadbf5e3cb1cd1cdd6acd3c161136b8a5737cdb4a8
+  net-http (0.9.1) sha256=25ba0b67c63e89df626ed8fac771d0ad24ad151a858af2cc8e6a716ca4336996
+  nokogiri (1.19.4-aarch64-linux-gnu) sha256=1269fb644a6de405057a53dd5c762b1209b43ca7424f839454d3dbc677c31a8f
+  nokogiri (1.19.4-aarch64-linux-musl) sha256=35c65b9ce72b3bb03207bdbe7067915019dc18c1b9b59139684bd6690fdd01af
+  nokogiri (1.19.4-arm-linux-gnu) sha256=a301313e38bb065d68239e79734bcd6f56fb6efaacebde29e9abf2a4735340ca
+  nokogiri (1.19.4-arm-linux-musl) sha256=588923c101bcfa78869734d247d25b598674323e7f22474fc468f6e5647311eb
+  nokogiri (1.19.4-arm64-darwin) sha256=a46db9853286e6597b36ebc6953817d15acf3a299583eb3f89fdc6f91dd63527
+  nokogiri (1.19.4-x86_64-darwin) sha256=7fd17057d3e1f00e9954a74b3cd76595d3d4a5ef233b7ed9599047c204f70551
+  nokogiri (1.19.4-x86_64-linux-gnu) sha256=379fae440b28915e3f19d752ce2dcf8465ed2b2fbefd2a7ca0dd497bc981a06a
+  nokogiri (1.19.4-x86_64-linux-musl) sha256=17dfb7c1fa194ae02fbf7c51a7afc8d278045ab3fdacfd86f91d02d7b274470b
+  observer (0.1.2) sha256=d8a3107131ba661138d748e7be3dbafc0d82e732fffba9fccb3d7829880950ac
+  ostruct (0.6.3) sha256=95a2ed4a4bd1d190784e666b47b2d3f078e4a9efda2fccf18f84ddc6538ed912
+  pkg-config (1.6.5) sha256=33f9f81c5322983d22b439b8b672f27777b406fea23bfec74ff14bbeb42ec733
+  public_suffix (7.0.5) sha256=1a8bb08f1bbea19228d3bed6e5ed908d1cb4f7c2726d18bd9cadf60bc676f623
+  racc (1.8.1) sha256=4a7f6929691dbec8b5209a0b373bc2614882b55fc5d2e447a21aaa691303d62f
+  reline (0.7.0) sha256=5b012d8e55dbf9d450f12bde2cf7d15ff546ae80b3f8f3b30e570d431815583d
+  rmagick (7.1.1) sha256=21e70bcd63d0aadb55845ac98450cef7043d9e6e8403f2d135e8e332c1cc119b
+  securerandom (0.4.1) sha256=cc5193d414a4341b6e225f0cb4446aceca8e50d5e1888743fac16987638ea0b1
+  sqlite3 (2.9.6-aarch64-linux-gnu) sha256=d8b1f7d23efd7abac285775a9566562fc7debfef79d594e3a20354406fb7907c
+  sqlite3 (2.9.6-aarch64-linux-musl) sha256=3579e1c98cdc7ff5c3722847bb63ed4e1efb7ff675cb5e1e48ef2d4da5fb3bc9
+  sqlite3 (2.9.6-arm-linux-gnu) sha256=33541500e3615da02afe54a9cc38b17a6985d3cf9d8b76d6d0a83002f114e7ec
+  sqlite3 (2.9.6-arm-linux-musl) sha256=c5490af48bb228fefa54314e9541375c3907e70f8109f3881b5ff97e1c93ae33
+  sqlite3 (2.9.6-arm64-darwin) sha256=849b5d7f795e60fe25076d62c72dd722beb45b3850b516ad978d60ee848ec15b
+  sqlite3 (2.9.6-x86_64-darwin) sha256=b5842fea77781c14da03fa7bc0feb82db03a69e135affcb6f5399cbd2797a5f3
+  sqlite3 (2.9.6-x86_64-linux-gnu) sha256=613188ce02f614126ddbc38c5e217ccffd6306d0dcd9adca9764547aa890a634
+  sqlite3 (2.9.6-x86_64-linux-musl) sha256=d493b11818a3573387a1d56e1ee8fa00da23a683a7a1cc063e7a0feeed843abf
+  streamio-ffmpeg (3.0.2) sha256=9f2434d4bf010b8b8d4da47c876ff35f4b775690123f3301e43b9c01d88fddda
+  telegram-bot-ruby (2.8.1) sha256=7a7b0988c03988770657c52c3f55be4fe67926e7c72ebfa5d47ff621426a42a8
+  terrapin (0.6.0) sha256=c9fea9f13a40dc7c75212d1b9d4ee7e4542ffe7811bf700a38ba30900b70285c
+  timeout (0.6.1) sha256=78f57368a7e7bbadec56971f78a3f5ecbcfb59b7fcbb0a3ed6ddc08a5094accb
+  tzinfo (2.0.6) sha256=8daf828cc77bcf7d63b0e3bdb6caa47e2272dcfaf4fbfe46f8c3a9df087a829b
+  uri (1.1.1) sha256=379fa58d27ffb1387eaada68c749d1426738bd0f654d812fcc07e7568f5c57c6
+  zeitwerk (2.8.3) sha256=2c85125a8467ce069e20123d1e709a08955c9d29c118c25b46b7b7fafdbb92e5
 
 RUBY VERSION
-   ruby 3.1.0p0
+  ruby 3.4.10
 
 BUNDLED WITH
-   2.3.15
+  4.0.18
