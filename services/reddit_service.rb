@@ -215,6 +215,8 @@ class RedditService
     logger.error("Error resolving reddit link from message: [#{e.class.name}] #{e.message}")
   end
 
+  # Classic inline keyboard, still required for sendPoll/sendVideo which don't
+  # support sendRichMessage's in-message button blocks.
   def self.reddit_post_reply_markup(post)
     Telegram::Bot::Types::InlineKeyboardMarkup.new(
       inline_keyboard: [[
@@ -411,63 +413,45 @@ class RedditService
   end
 
   # Builds and sends a single Reddit-post-card message: meta/tag/title header,
-  # the type-specific media blocks, a score footer, and the existing buttons.
-  # sendMediaGroup/sendPhoto/sendVideo have no reply_markup for this, but
-  # sendRichMessage does - one message, no follow-up call, no chat redirection.
+  # the type-specific media blocks, selftext, and a row of buttons - all as
+  # rich message content, so no reply_markup/follow-up call is needed.
   def send_rich_post(post, media_blocks)
-    blocks = reddit_header_blocks(post) + Array(media_blocks) + reddit_selftext_blocks(post)
+    blocks = reddit_header_blocks(post) + Array(media_blocks) + reddit_selftext_blocks(post) + [reddit_button_blocks(post)]
     @bilu.bot.api.send_rich_message(
       chat_id: get_telegram_chat_id,
       reply_parameters: Telegram::Bot::Types::ReplyParameters.new(message_id: get_telegram_message_id),
-      rich_message: Telegram::Bot::Types::InputRichMessage.new(blocks: blocks),
-      reply_markup: RedditService.reddit_post_reply_markup(post)
+      rich_message: Telegram::Bot::Types::InputRichMessage.new(blocks: blocks)
     )
   end
 
-  # Renders selftext as a short preview paragraph, used both for self-posts'
-  # own body and for the caption other post types (photo/video/gallery/gif)
-  # sometimes carry alongside their media. Longer bodies are truncated to a
-  # few lines with the rest tucked into a "Read more" details block, so a
-  # wall of text doesn't dominate the chat.
+  # "X Comments" + "More from r/subreddit", as a row of in-message buttons
+  # (Bot API 10.3) instead of the classic reply_markup inline keyboard.
+  def reddit_button_blocks(post)
+    Telegram::Bot::Types::InputRichBlockButtons.new(
+      buttons: [
+        Telegram::Bot::Types::RichMessageButton.new(
+          text: "#{post.comment_count} Comments",
+          url: "https://www.reddit.com#{post.permalink}"
+        ),
+        Telegram::Bot::Types::RichMessageButton.new(
+          text: "More from r/#{post.subreddit.display_name}",
+          callback_data: "callback /r #{post.subreddit.display_name}"
+        )
+      ]
+    )
+  end
+
+  # Wraps selftext in a native collapsible quote block, used both for
+  # self-posts' own body and for the caption other post types
+  # (photo/video/gallery/gif) sometimes carry alongside their media.
   def reddit_selftext_blocks(post)
     body = post.selftext.to_s.strip
     return [] if body.empty?
 
     max_len = 3500
     body = "#{body[0, max_len]}..." if body.length > max_len
-    preview, rest = split_selftext_preview(body)
-    wrap = lambda do |text|
-      post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: text) : text
-    end
-
-    blocks = [Telegram::Bot::Types::InputRichBlockParagraph.new(text: wrap.call(preview))]
-    return blocks if rest.empty?
-
-    blocks << Telegram::Bot::Types::InputRichBlockDetails.new(
-      summary: 'Read more',
-      blocks: [Telegram::Bot::Types::InputRichBlockParagraph.new(text: wrap.call(rest))]
-    )
-    blocks
-  end
-
-  # Splits text into a ~4-line preview and the remainder, keeping original
-  # whitespace/line breaks intact in both halves.
-  def split_selftext_preview(body, word_limit: 50)
-    tokens = body.split(/(\s+)/)
-    split_index = tokens.length
-    word_count = 0
-    tokens.each_with_index do |token, i|
-      next if token.strip.empty?
-
-      word_count += 1
-      next unless word_count >= word_limit
-
-      split_index = i + 1
-      break
-    end
-    return [body, ''] if split_index >= tokens.length
-
-    [tokens[0...split_index].join, tokens[split_index..-1].join.strip]
+    text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
+    [Telegram::Bot::Types::InputRichBlockExpandableBlockQuotation.new(text: text)]
   end
 
   # "r/subreddit" bold on its own line, "u/author • <relative time>" plain on

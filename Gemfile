@@ -15,7 +15,7 @@ gem 'fastimage'
 gem 'fileutils'
 gem 'sqlite3', '~> 2.1'
 gem 'rmagick'
-gem 'telegram-bot-ruby', '~> 2.8'
+gem 'telegram-bot-ruby', github: 'atipugin/telegram-bot-ruby', branch: 'bot-api-10-3'
 gem 'streamio-ffmpeg'
 gem "terrapin", "~> 0.6.0"
 
