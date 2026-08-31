@@ -403,12 +403,10 @@ class RedditService
       chat_id: get_telegram_chat_id,
       action: 'typing'
     )
-    photo_blocks = post.gallery_urls.first(50).map do |url|
-      Telegram::Bot::Types::InputRichBlockPhoto.new(
-        photo: Telegram::Bot::Types::InputMediaPhoto.new(media: url, has_spoiler: post.over_18? || post.spoiler?)
-      )
+    media_blocks = post.gallery_urls.first(50).map do |url|
+      reddit_embedded_media_block({ url: url, caption: nil }, post)
     end
-    send_rich_post(post, [Telegram::Bot::Types::InputRichBlockSlideshow.new(blocks: photo_blocks)])
+    send_rich_post(post, [Telegram::Bot::Types::InputRichBlockSlideshow.new(blocks: media_blocks)])
     logger.debug('END - Sending rich message gallery through telegram API.')
   end
 
