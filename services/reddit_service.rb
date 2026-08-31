@@ -441,9 +441,22 @@ class RedditService
     )
   end
 
-  # Wraps selftext in a native collapsible quote block, used both for
+  # Reddit self-posts embed images/gifs/videos either as a bare link on their
+  # own line (e.g. a plain preview.redd.it/i.redd.it/v.redd.it/i.imgur.com
+  # URL) or as a markdown link - `[Caption](url)`, whose label (if any) is
+  # the caption shown under the media on reddit.com.
+  MEDIA_EMBED_PATTERN = %r{
+    !?\[([^\]]*)\]\((https?://[^\s)]+)\)
+    |
+    (https?://\S*(?:preview\.redd\.it|i\.redd\.it|v\.redd\.it|i\.imgur\.com)\S*)
+  }xi
+
+  # Wraps selftext in native collapsible quote blocks, used both for
   # self-posts' own body and for the caption other post types
-  # (photo/video/gallery/gif) sometimes carry alongside their media.
+  # (photo/video/gallery/gif) sometimes carry alongside their media. Any
+  # embedded image/gif/video link found along the way gets its own media
+  # block instead of showing up as a plain link, matching how reddit.com
+  # renders the same post, then the text resumes right after it.
   def reddit_selftext_blocks(post)
     body = post.selftext.to_s.strip
     return [] if body.empty?
@@ -453,8 +466,59 @@ class RedditService
     # for the header/tags/buttons blocks alongside this one.
     max_len = 30_000
     body = "#{body[0, max_len]}..." if body.length > max_len
-    text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
-    [Telegram::Bot::Types::InputRichBlockExpandableBlockQuotation.new(text: text)]
+
+    split_body_media_segments(body).flat_map do |type, value|
+      type == :media ? [reddit_embedded_media_block(value, post)] : reddit_text_quote_blocks(value, post)
+    end
+  end
+
+  # Splits selftext into an ordered list of ["text", str] / ["media", {url:,
+  # caption:}] segments, so blocks can be built in the same order the
+  # content appears.
+  def split_body_media_segments(body)
+    segments = []
+    last_end = 0
+    body.to_enum(:scan, MEDIA_EMBED_PATTERN).each do
+      match = Regexp.last_match
+      segments << [:text, body[last_end...match.begin(0)]] if match.begin(0) > last_end
+      segments << [:media, { url: match[2] || match[3], caption: match[1] }]
+      last_end = match.end(0)
+    end
+    segments << [:text, body[last_end..]] if last_end < body.length
+    segments
+  end
+
+  def reddit_text_quote_blocks(text, post)
+    text = text.strip
+    return [] if text.empty?
+
+    wrapped = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: text) : text
+    [Telegram::Bot::Types::InputRichBlockExpandableBlockQuotation.new(text: wrapped)]
+  end
+
+  def reddit_embedded_media_block(media, post)
+    url = media[:url]
+    spoiler = post.over_18? || post.spoiler?
+    caption = media[:caption].to_s.strip
+    caption_kwargs = caption.empty? ? {} : { caption: Telegram::Bot::Types::RichBlockCaption.new(text: caption) }
+
+    case url
+    when %r{v\.redd\.it}i, /\.mp4(?:[?#]|$)/i
+      Telegram::Bot::Types::InputRichBlockVideo.new(
+        video: Telegram::Bot::Types::InputMediaVideo.new(media: url, supports_streaming: true, has_spoiler: spoiler),
+        **caption_kwargs
+      )
+    when /\.gifv?(?:[?#]|$)/i
+      Telegram::Bot::Types::InputRichBlockAnimation.new(
+        animation: Telegram::Bot::Types::InputMediaAnimation.new(media: url.sub(/\.gifv$/i, '.mp4'), has_spoiler: spoiler),
+        **caption_kwargs
+      )
+    else
+      Telegram::Bot::Types::InputRichBlockPhoto.new(
+        photo: Telegram::Bot::Types::InputMediaPhoto.new(media: url, has_spoiler: spoiler),
+        **caption_kwargs
+      )
+    end
   end
 
   # "r/subreddit" bold on its own line, "u/author • <relative time>" plain on
