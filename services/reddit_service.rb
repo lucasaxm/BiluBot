@@ -406,7 +406,7 @@ class RedditService
     media_blocks = post.gallery_urls.first(50).map do |url|
       reddit_embedded_media_block({ url: url, caption: nil }, post)
     end
-    send_rich_post(post, [Telegram::Bot::Types::InputRichBlockSlideshow.new(blocks: media_blocks)])
+    send_rich_post(post, [Telegram::Bot::Types::InputRichBlockCollage.new(blocks: media_blocks)])
     logger.debug('END - Sending rich message gallery through telegram API.')
   end
 
