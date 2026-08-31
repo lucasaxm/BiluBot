@@ -448,7 +448,10 @@ class RedditService
     body = post.selftext.to_s.strip
     return [] if body.empty?
 
-    max_len = 3500
+    # Rich messages allow up to 32768 chars total (not per-block, unlike the
+    # old 1024-char caption/4096-char text limits), leaving plenty of room
+    # for the header/tags/buttons blocks alongside this one.
+    max_len = 30_000
     body = "#{body[0, max_len]}..." if body.length > max_len
     text = post.over_18? || post.spoiler? ? Telegram::Bot::Types::RichTextSpoiler.new(text: body) : body
     [Telegram::Bot::Types::InputRichBlockExpandableBlockQuotation.new(text: text)]
